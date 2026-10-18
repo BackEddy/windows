@@ -19,13 +19,36 @@ static class Discovery
         "System.Devices.Dnssd.HostName", "System.Devices.Dnssd.InstanceName", "System.Devices.IpAddress",
     };
 
+    /// <summary>Duas buscas juntas: mDNS direto (Backeddy.Core.Mdns, o mais confiável) e a do Windows.</summary>
     public static async Task<List<FoundServer>> FindAsync()
+    {
+        var direct = DirectAsync();
+        var windows = WindowsAsync();
+        var list = new List<FoundServer>();
+        foreach (var s in (await direct).Concat(await windows))
+            if (!list.Any(x => string.Equals(x.Host, s.Host, StringComparison.OrdinalIgnoreCase)
+                               || (s.Ip is not null && x.Ip == s.Ip)))
+                list.Add(s);
+        return list.OrderBy(s => s.Name).ToList();
+    }
+
+    static async Task<List<FoundServer>> DirectAsync()
+    {
+        try
+        {
+            var found = await Backeddy.Core.Mdns.BrowseAsync("_backeddy._tcp.local", TimeSpan.FromSeconds(3));
+            return found.Select(f => new FoundServer(f.Name, f.Host.TrimEnd('.'), f.Ip)).ToList();
+        }
+        catch (Exception) { return new(); }
+    }
+
+    static async Task<List<FoundServer>> WindowsAsync()
     {
         var list = new List<FoundServer>();
         try
         {
             var found = await DeviceInformation.FindAllAsync(Aqs, Props, DeviceInformationKind.AssociationEndpointService).AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10));
+                .WaitAsync(TimeSpan.FromSeconds(6));
             foreach (var d in found)
             {
                 var host = Prop(d, "System.Devices.Dnssd.HostName") as string;
@@ -39,7 +62,7 @@ static class Discovery
             }
         }
         catch (Exception) { }   // sem mDNS na rede: a pessoa digita o endereço
-        return list.OrderBy(s => s.Name).ToList();
+        return list;
     }
 
     static object? Prop(DeviceInformation d, string key) => d.Properties.TryGetValue(key, out var v) ? v : null;

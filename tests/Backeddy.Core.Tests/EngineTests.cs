@@ -348,3 +348,51 @@ public class FileHistoryTests
         Assert.False(FileHistory.IsRef(""));
     }
 }
+
+public class MdnsTests
+{
+    // resposta típica do Avahi: PTR + SRV + A, com nomes comprimidos
+    static byte[] Answer()
+    {
+        var b = new List<byte> { 0, 0, 0x84, 0, 0, 0, 0, 3, 0, 0, 0, 0 };
+        int svc = b.Count;
+        void Name(params string[] labels) { foreach (var l in labels) { var x = System.Text.Encoding.UTF8.GetBytes(l); b.Add((byte)x.Length); b.AddRange(x); } b.Add(0); }
+        void Ptr(int off) { b.Add((byte)(0xC0 | off >> 8)); b.Add((byte)off); }
+        void Rr(ushort type, byte[] data) { b.Add((byte)(type >> 8)); b.Add((byte)type); b.AddRange(new byte[] { 0, 1, 0, 0, 0, 120, (byte)(data.Length >> 8), (byte)data.Length }); b.AddRange(data); }
+        Name("_backeddy", "_tcp", "local");
+        // PTR → "Backup da Casa._backeddy._tcp.local"
+        var inst = new List<byte>(); var lab = System.Text.Encoding.UTF8.GetBytes("Backup da Casa");
+        inst.Add((byte)lab.Length); inst.AddRange(lab); inst.Add(0xC0); inst.Add((byte)svc);
+        int instOff = b.Count + 10 + 0;   // onde o nome da instância vai ficar (dentro do dado do PTR)
+        Rr(12, inst.ToArray());
+        // SRV de "Backup da Casa..." (ponteiro para a instância) → backup-da-casa.local:80
+        Ptr(instOff);
+        var srv = new List<byte> { 0, 0, 0, 0, 0, 80 }; var h = System.Text.Encoding.UTF8.GetBytes("backup-da-casa");
+        srv.Add((byte)h.Length); srv.AddRange(h); srv.Add(5); srv.AddRange(System.Text.Encoding.UTF8.GetBytes("local")); srv.Add(0);
+        Rr(33, srv.ToArray());
+        Name("backup-da-casa", "local");
+        Rr(1, new byte[] { 192, 168, 0, 85 });
+        return b.ToArray();
+    }
+
+    [Fact]
+    public void ParsesAvahiAnswer()
+    {
+        var r = new Mdns.Records();
+        Mdns.Parse(Answer(), System.Net.IPAddress.Parse("192.168.0.85"), r);
+        var s = r.Services("_backeddy._tcp.local");
+        Assert.Single(s);
+        Assert.Equal("Backup da Casa", s[0].Name);
+        Assert.Equal("backup-da-casa.local", s[0].Host);
+        Assert.Equal(80, s[0].Port);
+        Assert.Equal("192.168.0.85", s[0].Ip);
+    }
+
+    [Fact]
+    public void QueryIsWellFormed()
+    {
+        var q = Mdns.BuildQuery("_backeddy._tcp.local", 12);
+        Assert.Equal(12 + 1 + 9 + 1 + 4 + 1 + 5 + 1 + 4, q.Length);
+        Assert.Equal(1, q[5]);
+    }
+}
