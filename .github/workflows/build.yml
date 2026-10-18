@@ -92,4 +92,4 @@ jobs:
         with:
           files: out/Backeddy-Setup-*.exe
           body_path: .github/release-notes.md
-          prerelease: true
+          prerelease: false

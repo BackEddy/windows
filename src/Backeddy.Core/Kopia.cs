@@ -147,6 +147,9 @@ public static class KopiaCli
         if (s.Contains("no space left") || s.Contains("not enough space") || s.Contains("disk full")) return Err.NoSpace;
         if (s.Contains("connection refused") || s.Contains("no such host") || s.Contains("timeout") || s.Contains("unreachable")
             || s.Contains("unable to connect") || s.Contains("connectex")) return Err.Unreachable;
+        // o servidor fechou a conexão no meio (reiniciou, ficou sem memória, caiu a rede)
+        if (s.Contains("async writes") || s.Contains(": eof") || s.Contains("connection reset") || s.Contains("unavailable")
+            || s.Contains("broken pipe")) return Err.Dropped;
         return Err.Unknown;
     }
 

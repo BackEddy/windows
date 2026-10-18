@@ -64,4 +64,5 @@ public static class Err
     public const string OtherUser = "otherUser";
     public const string OutsideSources = "outsideSources";
     public const string OldServer = "oldServer";
+    public const string Dropped = "dropped";
 }

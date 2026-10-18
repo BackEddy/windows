@@ -49,3 +49,14 @@ Parte da família Backeddy (contexto geral e decisões em BackEddy/server, arqui
   re-pareamento com o nome antigo), mapear a pasta de usuário antiga para a atual (a trava InsideSources hoje bloqueia
   caminhos antigos), "Restaurar tudo deste momento".
 - Depois: jogos/apps, migrar para PC novo, imagem do sistema, pendrive de resgate; SignPath quando houver reputação.
+
+## Próximas versões (combinado em 18/10/2026; 1.0.0 publicada como release normal para os testes da comunidade)
+- 1.1 (comportamento): não fazer backup no servidor em rede tarifada (celular roteando), com aviso e "Fazer backup
+  agora" passando por cima; manter o PC acordado só durante um backup (ajuste ligado na tomada; na bateria só se a
+  pessoa marcar, com aviso; tampa fechada não); aviso de backup atrasado (3 dias); pausar backups (1 h / até amanhã);
+  atualização automática do app; conferência periódica dos backups (amostra); ver a chave de recuperação de novo.
+- 1.2 (visual): interface mais bonita (Mica, cabeçalho de estado, cartões, modo escuro; parecida com a do Mac), barra
+  de progresso com velocidade e tempo restante, buscar arquivo pelo nome na linha do tempo, espaço ocupado no destino.
+- Depois: recuperação de desastre ("Este PC substitui o PC-X", mapear pasta de usuário, "Restaurar tudo");
+  assinatura digital (SignPath) quando houver reputação; jogos/apps, migração, imagem do sistema, pendrive de resgate.
+- Busca de servidores: Backeddy.Core.Mdns (mDNS direto, legacy unicast) + DeviceInformation; a do Windows sozinha falhou no teste.

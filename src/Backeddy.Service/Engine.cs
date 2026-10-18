@@ -339,7 +339,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
         bool available = cfg.Destination switch
         {
             DestinationKind.Disk => Directory.Exists(cfg.DiskRepo),
-            DestinationKind.Server => await ReachableUrlAsync(stop) is not null,
+            DestinationKind.Server => await ServerAvailableAsync(manual, stop),
             _ => false,
         };
         var decision = Schedule.Decide(cfg, DateTimeOffset.Now, manual, onBattery, pct, available);
@@ -429,6 +429,15 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
     // ------------------------------------------------------------ servidor
 
     IEnumerable<string> ServerHosts() => new[] { cfg.ServerHost ?? "", cfg.ServerIp ?? "" };
+
+    // só testa o servidor quando um backup está na hora: cada teste vira uma linha "TLS handshake error" no
+    // registro do servidor, então nada de testar a cada 30 segundos à toa
+    async Task<bool> ServerAvailableAsync(bool manual, CancellationToken ct)
+    {
+        var due = Schedule.Next(cfg) is not { } next || next <= DateTimeOffset.Now;
+        if (!manual && !due) return true;
+        return await ReachableUrlAsync(ct) is not null;
+    }
 
     async Task<string?> ReachableUrlAsync(CancellationToken ct)
     {

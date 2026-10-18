@@ -150,6 +150,7 @@ public class KopiaTests
         Assert.Equal(Err.Certificate, KopiaCli.Classify("x509: certificate signed by unknown authority"));
         Assert.Equal(Err.Unreachable, KopiaCli.Classify("dial tcp: connectex: No connection could be made"));
         Assert.Equal(Err.NoSpace, KopiaCli.Classify("write: There is not enough space on the disk"));
+        Assert.Equal(Err.Dropped, KopiaCli.Classify("ERROR flush error: error waiting for async writes: EOF: EOF"));
         Assert.Equal(Err.Unknown, KopiaCli.Classify("boom"));
     }
 
@@ -304,8 +305,8 @@ public class FormatTests
     public void EveryErrorHasAText()
     {
         foreach (var f in typeof(Err).GetFields())
-            Assert.True(Strings.Keys.Contains("err." + f.GetValue(null)), "falta err." + f.GetValue(null));
-        Assert.True(Strings.Keys.Contains("err.kopiaMissing"));
+            Assert.Contains("err." + f.GetValue(null), Strings.Keys);
+        Assert.Contains("err.kopiaMissing", Strings.Keys);
     }
 }
 
