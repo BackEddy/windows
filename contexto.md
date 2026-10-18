@@ -17,6 +17,11 @@ Parte da família Backeddy (contexto geral e decisões em BackEddy/server, arqui
 1. (servidor 0.9) pareamento — feito.
 2. Esqueleto: repositório, CI, serviço e bandeja — 0.0.1 (instalado e testado numa VM).
 3. 0.1.0 (rodada única, 17/10/2026): tudo abaixo. Falta testar de verdade (docs/TESTING.pt-BR.md).
+4. 1.0.0 (18/10/2026; decisão: fechar arquivos e versões como produto, desastre depois): "Versões deste arquivo…"
+   (Cmd file.versions; FileHistory.CollectAsync percorre os backups da origem com cache por objeto de pasta e lista os
+   conteúdos diferentes); restaurar usa referência "objeto-da-pasta/nome" (FileHistory.IsRef valida) para o Kopia
+   manter nome e data; bloco "Ainda não tem um Backeddy Server?" (servidor em OUTRO computador; link + HD externo).
+   README: seção "Se o PC morrer" (plano B: KopiaUI + chave). Servidor 1.0 passa a se atualizar sozinho.
 
 ## Como a 0.1 funciona
 - Core (testado em tests/, roda no Linux): Ipc (comandos em Cmd, respostas IpcResponse com códigos Err), Models,
@@ -39,5 +44,8 @@ Parte da família Backeddy (contexto geral e decisões em BackEddy/server, arqui
 - CI baixa o Kopia (KOPIA_VERSION no build.yml, hoje 0.19.0) e confere com checksums.txt quando existe.
 
 ## Pendências
-- Testar tudo (HD, restauração, servidor 0.9, alertas, bateria). Fixar o SHA-256 do Kopia no build.yml.
+- Testar tudo (HD, restauração, versões, servidor 1.0, alertas, bateria). Fixar o SHA-256 do Kopia no build.yml.
+- Recuperação de desastre (próxima): "Este PC substitui o PC-X" (HD: snapshot list --all / servidor: /api/pcs e
+  re-pareamento com o nome antigo), mapear a pasta de usuário antiga para a atual (a trava InsideSources hoje bloqueia
+  caminhos antigos), "Restaurar tudo deste momento".
 - Depois: jogos/apps, migrar para PC novo, imagem do sistema, pendrive de resgate; SignPath quando houver reputação.

@@ -60,6 +60,21 @@ public sealed partial class MainWindow
         foreach (var s in found)
             list.Children.Add(Ui.Card("\uE968", s.Name, s.Host + (s.Ip is null ? "" : $" · {s.Ip}"), () => ShowServerPassword(s)));
         list.Children.Add(Ui.Link(Strings.T("searchAgain"), ShowServerSearch));
+
+        // sem servidor: ele precisa ficar em OUTRO computador (no mesmo PC, um defeito levaria o backup junto)
+        var help = Ui.Column(8,
+            Ui.Strong(Strings.T("noServerTitle")),
+            Ui.Text(Strings.T("noServerIntro"), 0.85),
+            Ui.Link(Strings.T("noServerHow"), () => OpenUrl("https://github.com/BackEddy/server#get-it")),
+            Ui.Link(Strings.T("useDiskMeanwhile"), ShowDiskList));
+        help.Margin = new Thickness(0, 12, 0, 0);
+        list.Children.Add(help);
+    }
+
+    static void OpenUrl(string url)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception) { }
     }
 
     void ShowServerPassword(FoundServer s)

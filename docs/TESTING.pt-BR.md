@@ -1,4 +1,4 @@
-# Testando o Backeddy for Windows 0.1
+# Testando o Backeddy for Windows 1.0
 
 Use uma **máquina virtual Windows** (Hyper-V: Windows 11 ou 10 22H2, 64 bits) com alguns arquivos de teste na pasta
 do usuário (Documentos, Imagens). Para o teste com servidor, precisa de um **Backeddy Server 0.9 ou mais novo** na
@@ -41,7 +41,11 @@ de Disco › inicializar e formatar (NTFS, nome "Backup").
 - [ ] Num arquivo: **Restaurar ao lado** → volta à tela inicial, "Restaurando…" → "Restaurado" com o caminho
       `nota (restaurado 2026-10-17 10h00).txt`; **Mostrar na pasta** abre o Explorer com ele selecionado
 - [ ] Apagar uma pasta de teste e restaurá-la **no lugar original** (pede confirmação) → volta inteira
-- [ ] O arquivo restaurado abre normalmente com o seu usuário (permissões)
+- [ ] O arquivo restaurado abre normalmente com o seu usuário (permissões) e mantém a data de modificação original
+- [ ] **Versões deste arquivo…**: editar um arquivo 3 vezes, com "Fazer backup agora" entre elas → aparecem 3 versões
+      (mais nova primeiro, tamanho e "modificado …"); restaurar a mais antiga ao lado e conferir o conteúdo
+- [ ] Sem servidor na rede: a tela do Backeddy Server mostra "Ainda não tem um Backeddy Server?" (link abre o navegador;
+      "Enquanto isso, fazer backup num HD externo" leva para a escolha do HD)
 
 ## 4. Backeddy Server (0.9+)
 

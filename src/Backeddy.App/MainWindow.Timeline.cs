@@ -112,7 +112,7 @@ public sealed partial class MainWindow
         {
             var name = item.Label == "profile" ? Strings.F("yourFolderPath", item.Source) : item.Source.TrimEnd('\\');
             var it = item;
-            tlEntries.Children.Add(EntryRow(true, name, null, new DirEntry(name, true, 0, null, item.Obj), item.Source,
+            tlEntries.Children.Add(EntryRow(true, name, null, item.Obj, item.Source, null,
                 () => _ = OpenDirAsync(new Crumb(name, it.Obj, it.Source))));
         }
     }
@@ -134,13 +134,16 @@ public sealed partial class MainWindow
         }
         var entries = Ipc.From<List<DirEntry>>(r.Data) ?? new();
         if (entries.Count == 0) tlEntries.Children.Add(Ui.Text(Strings.T("emptyFolder"), 0.7));
+        var source = crumbs[0].OriginalPath;
         foreach (var e in entries.Take(MaxEntries))
         {
             var path = c.OriginalPath.TrimEnd('\\') + "\\" + e.Name;
             var detail = (e.Size > 0 ? Format.Size(e.Size) : "") +
                          (e.Modified is { } m ? (e.Size > 0 ? " · " : "") + Format.When(m, DateTimeOffset.Now) : "");
             var en = e;
-            tlEntries.Children.Add(EntryRow(e.IsDir, e.Name, detail, e, path,
+            var refObj = FileHistory.Ref(c.Obj, e.Name);
+            Action? versions = e.IsDir ? null : () => _ = ShowVersionsAsync(source, path, en.Name);
+            tlEntries.Children.Add(EntryRow(e.IsDir, e.Name, detail, refObj, path, versions,
                 e.IsDir ? () => _ = OpenDirAsync(new Crumb(en.Name, en.Obj, path)) : null));
         }
         if (entries.Count > MaxEntries)
@@ -160,8 +163,8 @@ public sealed partial class MainWindow
             tlCrumbs.Children.Add(Ui.Text("›", 0.6));
             if (i == crumbs.Count - 1)
             {
-                var restoreHere = new DropDownButton { Content = c.Name, Flyout = RestoreMenu(new DirEntry(c.Name, true, 0, null, c.Obj), c.OriginalPath) };
-                tlCrumbs.Children.Add(restoreHere);
+                var refObj = i == 0 ? c.Obj : FileHistory.Ref(crumbs[i - 1].Obj, c.Name);
+                tlCrumbs.Children.Add(new DropDownButton { Content = c.Name, Flyout = RestoreMenu(refObj, true, c.OriginalPath, null) });
             }
             else
                 tlCrumbs.Children.Add(Ui.Link(c.Name, () =>
@@ -174,7 +177,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Linha de uma pasta ou arquivo: clicar numa pasta entra nela; o botão "…" (ou clicar num arquivo) mostra a restauração.</summary>
-    UIElement EntryRow(bool isDir, string name, string? detail, DirEntry entry, string originalPath, Action? open)
+    UIElement EntryRow(bool isDir, string name, string? detail, string refObj, string originalPath, Action? versions, Action? open)
     {
         var grid = new Grid { ColumnSpacing = 12 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -195,9 +198,9 @@ public sealed partial class MainWindow
             Padding = new Thickness(8, 6, 8, 6),
         };
         if (open is not null) row.Click += (_, _) => open();
-        else row.Flyout = RestoreMenu(entry, originalPath);
+        else row.Flyout = RestoreMenu(refObj, isDir, originalPath, versions);
 
-        var more = new Button { Content = new FontIcon { Glyph = "", FontSize = 14 }, Flyout = RestoreMenu(entry, originalPath) };
+        var more = new Button { Content = new FontIcon { Glyph = "", FontSize = 14 }, Flyout = RestoreMenu(refObj, isDir, originalPath, versions) };
         ToolTipService.SetToolTip(more, Strings.T("restore"));
         var line = new Grid { ColumnSpacing = 6 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -208,23 +211,68 @@ public sealed partial class MainWindow
         return line;
     }
 
-    MenuFlyout RestoreMenu(DirEntry entry, string originalPath)
+    MenuFlyout RestoreMenu(string refObj, bool isDir, string originalPath, Action? versions)
     {
         var m = new MenuFlyout();
-        m.Items.Add(Ui.MenuItem(Strings.T("restoreBeside"), () => _ = RestoreAsync(entry, originalPath, false)));
-        m.Items.Add(Ui.MenuItem(Strings.T("restoreOriginal"), () => _ = RestoreAsync(entry, originalPath, true)));
+        m.Items.Add(Ui.MenuItem(Strings.T("restoreBeside"), () => _ = RestoreAsync(refObj, isDir, originalPath, false, point?.Time)));
+        m.Items.Add(Ui.MenuItem(Strings.T("restoreOriginal"), () => _ = RestoreAsync(refObj, isDir, originalPath, true, point?.Time)));
+        if (versions is not null) m.Items.Add(Ui.MenuItem(Strings.T("versions"), versions));
         return m;
     }
 
-    async Task RestoreAsync(DirEntry entry, string originalPath, bool original)
+    /// <summary>Todas as versões diferentes de um arquivo, de todos os backups, numa janelinha.</summary>
+    async Task ShowVersionsAsync(string source, string path, string name)
     {
-        if (point is null) return;
-        var when = Format.Day(point.Time) + " " + Format.Time(point.Time);
+        var rel = path.Length > source.TrimEnd('\\').Length ? path[(source.TrimEnd('\\').Length + 1)..] : name;
+        var list = Ui.Column(6, Ui.Row(10, Ui.Spinner(), Ui.Text(Strings.T("searchingVersions"))));
+        var dlg = new ContentDialog
+        {
+            XamlRoot = XRoot,
+            Title = Strings.F("versionsOf", name),
+            Content = new ScrollViewer { Content = list, MaxHeight = 420 },
+            CloseButtonText = Strings.T("close"),
+        };
+        var showing = dlg.ShowAsync();
+        var r = await ServiceClient.CallAsync(Cmd.Versions, new VersionsRequest(source, rel), ServiceClient.Long);
+        list.Children.Clear();
+        var versions = r?.Ok == true ? Ipc.From<List<FileVersion>>(r.Data) ?? new() : null;
+        if (versions is null) list.Children.Add(Ui.Bar(InfoBarSeverity.Error, null, ServiceClient.ErrorText(r)));
+        else if (versions.Count == 0) list.Children.Add(Ui.Text(Strings.T("noVersions"), 0.8));
+        else
+        {
+            list.Children.Add(Ui.Caption(Strings.F("versionsCount", versions.Count)));
+            foreach (var v in versions)
+            {
+                var vv = v;
+                var title = Format.Day(v.PointTime) + " " + Format.Time(v.PointTime);
+                var detail = Format.Size(v.Size) + (v.Modified is { } m ? " · " + Strings.F("modifiedAt", Format.When(m, DateTimeOffset.Now)) : "");
+                var menu = new MenuFlyout();
+                menu.Items.Add(Ui.MenuItem(Strings.T("restoreBeside"), () => { dlg.Hide(); _ = RestoreAsync(vv.Ref, false, path, false, vv.PointTime); }));
+                menu.Items.Add(Ui.MenuItem(Strings.T("restoreOriginal"), () => { dlg.Hide(); _ = RestoreAsync(vv.Ref, false, path, true, vv.PointTime); }));
+                var row = new Grid { ColumnSpacing = 12 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var texts = Ui.Column(0, Ui.Text(title), Ui.Caption(detail));
+                var btn = new DropDownButton { Content = Strings.T("restore"), Flyout = menu, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(btn, 1);
+                row.Children.Add(texts);
+                row.Children.Add(btn);
+                list.Children.Add(row);
+            }
+        }
+        await showing;
+    }
+
+    async Task RestoreAsync(string refObj, bool isDir, string originalPath, bool original, DateTimeOffset? when)
+    {
+        if (when is not { } time) return;
+        await Task.Delay(150);   // deixa a janelinha de versões fechar antes de abrir a confirmação
+        var label = Format.Day(time) + " " + Format.Time(time);
         if (original && !await Ui.ConfirmAsync(XRoot, Strings.T("restoreOriginal"),
-                Strings.F("restoreOriginalConfirm", originalPath, when), Strings.T("replace"), Strings.T("cancel")))
+                Strings.F("restoreOriginalConfirm", originalPath, label), Strings.T("replace"), Strings.T("cancel")))
             return;
         var r = await ServiceClient.CallAsync(Cmd.Restore,
-            new RestoreRequest(entry.Obj, entry.IsDir, originalPath, original, point.Time, Strings.T("restoredWord")));
+            new RestoreRequest(refObj, isDir, originalPath, original, time, Strings.T("restoredWord")));
         if (r?.Ok != true)
         {
             tlBars?.Children.Clear();

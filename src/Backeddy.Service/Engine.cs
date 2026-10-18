@@ -107,10 +107,11 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                 case Cmd.Points: return await PointsAsync(ct);
                 case Cmd.ListDir:
                     var obj = Ipc.From<DirRequest>(req.Data)?.Obj;
-                    if (string.IsNullOrEmpty(obj) || !IsObjectId(obj)) return Ipc.Fail(Err.Unknown);
-                    var r = await kopia.RunAsync(KopiaCli.Show(obj), secrets.RepoPassword, ct, TimeSpan.FromMinutes(2));
+                    if (!FileHistory.IsRef(obj)) return Ipc.Fail(Err.Unknown);
+                    var r = await kopia.RunAsync(KopiaCli.Show(obj!), secrets.RepoPassword, ct, TimeSpan.FromMinutes(2));
                     return r.Ok ? Ipc.Success(KopiaCli.ParseDirectory(r.Out)) : Ipc.Fail(r.Error);
                 case Cmd.Restore: return StartRestore(Ipc.From<RestoreRequest>(req.Data));
+                case Cmd.Versions: return await VersionsAsync(Ipc.From<VersionsRequest>(req.Data), ct);
                 case Cmd.Ack:
                     var days = Math.Clamp(Ipc.From<AckRequest>(req.Data)?.Days ?? 1, 1, 30);
                     if (cfg.Destination != DestinationKind.Server || secrets.ServerPassword is null) return Ipc.Fail(Err.NotConfigured);
@@ -128,8 +129,24 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
         }
     }
 
-    // obj do Kopia: letras e números (às vezes com prefixo k/Ix); nada de opções "--"
-    static bool IsObjectId(string s) => s.Length < 200 && s.All(ch => char.IsLetterOrDigit(ch));
+    // versões de um arquivo: percorre os backups da origem (pastas iguais são lidas uma vez só)
+    async Task<IpcResponse> VersionsAsync(VersionsRequest? v, CancellationToken ct)
+    {
+        if (v is null || string.IsNullOrWhiteSpace(v.RelPath) || v.RelPath.Contains("..")) return Ipc.Fail(Err.Unknown);
+        if (cfg.Destination == DestinationKind.None) return Ipc.Fail(Err.NotConfigured);
+        if (cfg.Destination == DestinationKind.Server && connectedUrl is null && !await EnsureServerConnectedAsync(ct))
+            return Ipc.Fail(Err.Unreachable);
+        var r = await kopia.RunAsync(KopiaCli.SnapshotList(), secrets.RepoPassword, ct, TimeSpan.FromMinutes(2));
+        if (!r.Ok) return Ipc.Fail(r.Error);
+        var snaps = KopiaCli.ParseSnapshots(r.Out)
+            .Where(s => string.Equals(s.Source.TrimEnd('\\'), v.Source.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase));
+        var list = await FileHistory.CollectAsync(snaps, v.RelPath, async obj =>
+        {
+            var d = await kopia.RunAsync(KopiaCli.Show(obj), secrets.RepoPassword, ct, TimeSpan.FromMinutes(2));
+            return d.Ok ? KopiaCli.ParseDirectory(d.Out) : null;
+        });
+        return Ipc.Success(list);
+    }
 
     async Task<IpcResponse> SetupDiskAsync(DiskSetup? d, CancellationToken ct)
     {
@@ -257,7 +274,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
 
     IpcResponse StartRestore(RestoreRequest? req)
     {
-        if (req is null || !IsObjectId(req.Obj)) return Ipc.Fail(Err.Unknown);
+        if (req is null || !FileHistory.IsRef(req.Obj)) return Ipc.Fail(Err.Unknown);
         if (cfg.Profile is null) return Ipc.Fail(Err.NotConfigured);
         if (!RestorePlan.InsideSources(req.OriginalPath, AllSources())) return Ipc.Fail(Err.OutsideSources);
         lock (gate)

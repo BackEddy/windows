@@ -1,4 +1,4 @@
-**Backeddy for Windows 0.1 — first version that really backs up.** Early test release: keep another copy of anything you can't lose. · Primeira versão que faz backup de verdade (versão de teste) · Primera versión que hace backup de verdad (versión de prueba)
+**Backeddy for Windows 1.0 — first public version.** Early release: keep another copy of anything you can't lose. · Primeira versão pública · Primera versión pública
 
 | File | |
 | --- | --- |
@@ -7,6 +7,7 @@
 - Hourly backups of your user folder and other internal drives, with Volume Shadow Copy
 - To a **Backeddy Server 0.9+** (found on the network) or an **external drive** (with a recovery key)
 - Restore any file or folder from any moment, beside the current one or in its original place
+- Versions of a file: every different version across all backups
 - Server alerts next to the clock · waits on low battery · English, Português, Español
 
 ### ⚠️ "Windows protected your PC"

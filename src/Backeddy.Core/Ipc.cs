@@ -78,4 +78,5 @@ public static class Cmd
     public const string ListDir = "dir.list";
     public const string Restore = "restore";
     public const string Ack = "alerts.ack";
+    public const string Versions = "file.versions";
 }

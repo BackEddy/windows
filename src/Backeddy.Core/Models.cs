@@ -45,6 +45,9 @@ public sealed record DirRequest(string Obj);
 public sealed record DirEntry(string Name, bool IsDir, long Size, DateTimeOffset? Modified, string Obj);
 public sealed record RestoreRequest(string Obj, bool IsDir, string OriginalPath, bool Original, DateTimeOffset PointTime, string Word = "restored");
 public sealed record AckRequest(int Days);
+public sealed record VersionsRequest(string Source, string RelPath);
+/// <summary>Uma versão diferente de um arquivo: o primeiro momento em que ela aparece no backup.</summary>
+public sealed record FileVersion(DateTimeOffset PointTime, long Size, DateTimeOffset? Modified, string Ref);
 
 /// <summary>Códigos de erro do canal (o app traduz).</summary>
 public static class Err

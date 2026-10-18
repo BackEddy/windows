@@ -5,13 +5,13 @@
 <p align="center"><b>Um Time Machine para o Windows: backup dos seus arquivos a cada hora, e qualquer arquivo de volta como estava em qualquer dia.</b><br>
 <a href="README.md">English</a> · <a href="README.es.md">Español</a></p>
 
-<p align="center"><a href="https://github.com/BackEddy/windows/releases"><b>⬇️ Baixar (Backeddy-Setup-0.1.x.exe)</b></a> · Windows 10 22H2 ou 11, 64 bits · grátis</p>
+<p align="center"><a href="https://github.com/BackEddy/windows/releases"><b>⬇️ Baixar (Backeddy-Setup-1.0.x.exe)</b></a> · Windows 10 22H2 ou 11, 64 bits · grátis</p>
 
 ---
 
 ## Antes de começar: os riscos
 
-- **Esta é a versão 0.1 — a primeira que faz backup de verdade.** Pouquíssimas pessoas testaram. Mantenha **outra cópia** do que você não pode perder até ela provar que funciona.
+- **Esta é a versão 1.0, a primeira pública.** Pouquíssimas pessoas testaram. Mantenha **outra cópia** do que você não pode perder até ela provar que funciona.
 - Foi escrita com muita ajuda de IA e revisada por uma pessoa. O código é aberto: leia, teste e conte o que quebrar.
 - O instalador **ainda não tem assinatura digital**, então o Windows avisa “O Windows protegeu o computador”: **Mais informações › Executar assim mesmo**. O arquivo é montado pelo GitHub direto deste código.
 - Fornecido como está, sem garantias ([licença MIT](LICENSE)).
@@ -20,15 +20,16 @@
 
 - A cada hora, faz backup da **sua pasta de usuário e dos outros discos internos** (D:, E:…). Programas e o próprio Windows ficam de fora — dá para reinstalar. Você pode desmarcar pastas que não precisam (jogos, downloads grandes).
 - Arquivos abertos também são copiados (cópia de sombra do Windows).
-- Os backups vão para o **[Backeddy Server](https://github.com/BackEddy/server)** da sua casa (achado sozinho na rede; você só digita a senha do servidor) ou para um **HD externo**.
+- Os backups vão para o **[Backeddy Server](https://github.com/BackEddy/server)** da sua casa (achado sozinho na rede; você só digita a senha do servidor — o servidor precisa ser **outro computador**, nunca este PC) ou para um **HD externo**.
 - **Restaurar arquivos**: escolha data e hora, navegue pelas pastas e traga de volta um arquivo ou uma pasta inteira — ao lado da atual (uma cópia com outro nome) ou no lugar original.
+- **Versões de um arquivo**: todas as versões diferentes de um arquivo em todos os backups, da mais nova para a mais antiga; traga de volta qualquer uma.
 - No notebook, espera quando a bateria está abaixo de 20%; e espera o HD ou o servidor aparecerem.
 - Avisos do servidor (um disco falhando, por exemplo) aparecem perto do relógio, com “lembrar amanhã / em 3 / em 7 dias”.
 - Português, English, Español (segue o idioma do Windows).
 
 ## Configurar
 
-1. Baixe e abra o `Backeddy-Setup-0.1.x.exe` (veja o aviso acima).
+1. Baixe e abra o `Backeddy-Setup-1.0.x.exe` (veja o aviso acima).
 2. O Backeddy abre e pergunta **onde guardar os backups**:
    - **Backeddy Server** — escolha o servidor na lista (ou digite o endereço que aparece na tela dele) e digite a senha do servidor. Precisa do Backeddy Server **0.9 ou mais novo**.
    - **HD externo** — escolha o HD. O Backeddy cria uma pasta `Backeddy` nele e mostra uma **chave de recuperação**: anote no papel. Sem ela, ninguém abre esses backups (são criptografados) — nem nós.
@@ -43,6 +44,10 @@ Conte **o dobro do que vai para o backup**: uma cópia completa e espaço para o
 ## Por dentro
 
 C# / .NET 8. Um serviço do Windows (`Backeddy`, rodando como sistema) faz o trabalho com o motor aberto **[Kopia](https://kopia.io)** (Apache 2.0, incluído como `kopia.exe`); o app (WinUI 3) é a janela e o ícone na bandeja, e conversa com o serviço por um canal local. Só o usuário do Windows que configurou o Backeddy pode mudá-lo. As senhas ficam guardadas com o DPAPI do Windows, legíveis só pelo serviço. Registros: `C:\ProgramData\Backeddy\logs`.
+
+## Se o PC morrer (ainda não é automático)
+
+A versão 1.0 restaura arquivos e versões no PC que fez os backups (também depois de formatar, **se o PC ganhar o mesmo nome**). Trazer tudo de volta num **PC novo** é o próximo passo. Até lá, nada fica preso: a pasta `Backeddy` do HD externo é um repositório [Kopia](https://kopia.io) comum — instale o KopiaUI em qualquer computador, escolha *Local directory*, aponte para essa pasta e use a **chave de recuperação** como senha.
 
 Ainda não: jogos e programas, mudar para um PC novo, imagem completa do sistema e pendrive de resgate.
 

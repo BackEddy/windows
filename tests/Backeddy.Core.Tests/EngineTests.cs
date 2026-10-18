@@ -308,3 +308,43 @@ public class FormatTests
         Assert.True(Strings.Keys.Contains("err.kopiaMissing"));
     }
 }
+
+public class FileHistoryTests
+{
+    static SnapshotInfo Snap(string root, int hour) =>
+        new("s" + hour, @"C:\Users\ana", new DateTimeOffset(2026, 10, 17, hour, 0, 0, TimeSpan.Zero), root, 1, 1, null);
+
+    static DirEntry D(string name, string obj) => new(name, true, 0, null, obj);
+    static DirEntry F(string name, string obj, long size) => new(name, false, size, null, obj);
+
+    [Fact]
+    public async Task DistinctVersionsNewestFirstWithCache()
+    {
+        // 3 backups: o arquivo muda entre o 1º e o 2º; no 3º só outra pasta mudou
+        var dirs = new Dictionary<string, List<DirEntry>>
+        {
+            ["r1"] = new() { D("Docs", "d1") }, ["r2"] = new() { D("Docs", "d2") }, ["r3"] = new() { D("Docs", "d2"), D("Novo", "n") },
+            ["d1"] = new() { F("nota.txt", "fA", 10) }, ["d2"] = new() { F("nota.txt", "fB", 20) },
+        };
+        int calls = 0;
+        var v = await FileHistory.CollectAsync(new[] { Snap("r1", 8), Snap("r2", 9), Snap("r3", 10) }, @"Docs\nota.txt",
+            obj => { calls++; return Task.FromResult<List<DirEntry>?>(dirs.GetValueOrDefault(obj)); });
+        Assert.Equal(2, v.Count);
+        Assert.Equal(20, v[0].Size);
+        Assert.Equal("d2/nota.txt", v[0].Ref);
+        Assert.Equal(9, v[0].PointTime.Hour);
+        Assert.Equal("d1/nota.txt", v[1].Ref);
+        Assert.Equal(5, calls);   // d2 lido uma vez só
+    }
+
+    [Fact]
+    public void RefsFromTheAppAreChecked()
+    {
+        Assert.True(FileHistory.IsRef("k1a2b3"));
+        Assert.True(FileHistory.IsRef("k1a2b3/Minhas Fotos/foto (1).jpg"));
+        Assert.False(FileHistory.IsRef("--overwrite"));
+        Assert.False(FileHistory.IsRef("k1/../x"));
+        Assert.False(FileHistory.IsRef("k1/a\\b"));
+        Assert.False(FileHistory.IsRef(""));
+    }
+}
