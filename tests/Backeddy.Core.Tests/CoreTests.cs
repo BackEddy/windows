@@ -42,12 +42,14 @@ public class IpcTests
         var sent = new ServiceStatus { Version = "1.2.3", State = BackupState.Idle, StartedAt = DateTimeOffset.UnixEpoch, Message = "olá" };
         using var ms = new MemoryStream();
         await Ipc.WriteAsync(ms, sent);
-        await Ipc.WriteAsync(ms, new IpcRequest("status"));
+        await Ipc.WriteAsync(ms, new IpcRequest(Cmd.Status));
         ms.Position = 0;
         var got = await Ipc.ReadAsync<ServiceStatus>(ms);
         var req = await Ipc.ReadAsync<IpcRequest>(ms);
-        Assert.Equal(sent, got);
-        Assert.Equal("status", req?.Cmd);
+        Assert.Equal("1.2.3", got!.Version);
+        Assert.Equal(BackupState.Idle, got.State);
+        Assert.Equal("olá", got.Message);
+        Assert.Equal(Cmd.Status, req?.Cmd);
     }
 
     [Fact]

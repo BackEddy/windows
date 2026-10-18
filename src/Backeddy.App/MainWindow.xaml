@@ -3,15 +3,6 @@
     x:Class="Backeddy.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Padding="28">
-        <StackPanel Spacing="10">
-            <TextBlock Text="Backeddy" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock x:Name="TaglineText" Opacity="0.75" TextWrapping="Wrap" />
-            <Border Height="1" Margin="0,8" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-            <TextBlock x:Name="ServiceText" TextWrapping="Wrap" />
-            <TextBlock x:Name="StateText" TextWrapping="Wrap" Opacity="0.85" />
-            <InfoBar x:Name="PreviewBar" IsOpen="True" IsClosable="False" Severity="Informational" />
-            <Button x:Name="RefreshButton" Margin="0,8,0,0" />
-        </StackPanel>
-    </Grid>
+    <!-- As telas são montadas em código (MainWindow.*.cs) dentro desta grade. -->
+    <Grid x:Name="Root" />
 </Window>

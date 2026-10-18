@@ -4,3 +4,4 @@ out/
 *.user
 .vs/
 .DS_Store
+work/

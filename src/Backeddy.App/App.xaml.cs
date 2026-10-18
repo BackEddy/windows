@@ -36,6 +36,7 @@ public partial class App : Application
         waiter.Start();
 
         tray = new Tray(Path.Combine(AppContext.BaseDirectory, "Backeddy.ico"), Strings.T("trayTooltip"), ShowWindow, QuitTray);
+        window.AlertRaised += (title, text) => tray?.Notify(title, text);
         if (!Environment.GetCommandLineArgs().Contains("--tray")) ShowWindow();
     }
 

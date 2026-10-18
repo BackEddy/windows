@@ -4,21 +4,11 @@ using System.Text.Json.Serialization;
 
 namespace Backeddy.Core;
 
-/// <summary>Pedido do app ao serviço. Uma linha JSON por mensagem.</summary>
-public sealed record IpcRequest(string Cmd);
+/// <summary>Pedido do app ao serviço: comando + dados (uma linha JSON por mensagem).</summary>
+public sealed record IpcRequest(string Cmd, JsonElement? Data = null);
 
-/// <summary>Estados que o app mostra.</summary>
-public enum BackupState { Idle, Running, NotConfigured, Error }
-
-/// <summary>Situação do serviço, respondida a "status".</summary>
-public sealed record ServiceStatus
-{
-    public string Version { get; init; } = "";
-    public DateTimeOffset StartedAt { get; init; }
-    public BackupState State { get; init; } = BackupState.NotConfigured;
-    public DateTimeOffset? LastBackup { get; init; }
-    public string? Message { get; init; }
-}
+/// <summary>Resposta do serviço.</summary>
+public sealed record IpcResponse(bool Ok, string? Error = null, JsonElement? Data = null);
 
 public static class Ipc
 {
@@ -26,6 +16,7 @@ public static class Ipc
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     public static string Encode<T>(T value) => JsonSerializer.Serialize(value, Json);
@@ -37,6 +28,20 @@ public static class Ipc
         catch (JsonException) { return default; }
     }
 
+    public static JsonElement ToElement<T>(T value) => JsonSerializer.SerializeToElement(value, Json);
+
+    public static T? From<T>(JsonElement? e)
+    {
+        if (e is null || e.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return default;
+        try { return e.Value.Deserialize<T>(Json); }
+        catch (JsonException) { return default; }
+    }
+
+    public static IpcRequest Request<T>(string cmd, T data) => new(cmd, ToElement(data));
+    public static IpcResponse Success<T>(T data) => new(true, null, ToElement(data));
+    public static IpcResponse Success() => new(true);
+    public static IpcResponse Fail(string error) => new(false, error);
+
     /// <summary>Escreve uma mensagem (uma linha) no canal.</summary>
     public static async Task WriteAsync<T>(Stream s, T value, CancellationToken ct = default)
     {
@@ -45,17 +50,32 @@ public static class Ipc
         await s.FlushAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Lê uma mensagem (até o fim da linha, no máximo 64 KB).</summary>
+    /// <summary>Lê uma mensagem (até o fim da linha, no máximo 4 MB).</summary>
     public static async Task<T?> ReadAsync<T>(Stream s, CancellationToken ct = default)
     {
-        var buf = new List<byte>();
-        var one = new byte[1];
-        while (buf.Count < 65536)
+        var buf = new MemoryStream();
+        var chunk = new byte[1];
+        while (buf.Length < 4 << 20)
         {
-            int n = await s.ReadAsync(one, ct).ConfigureAwait(false);
-            if (n == 0 || one[0] == (byte)'\n') break;
-            buf.Add(one[0]);
+            int n = await s.ReadAsync(chunk, ct).ConfigureAwait(false);
+            if (n == 0 || chunk[0] == (byte)'\n') break;
+            buf.WriteByte(chunk[0]);
         }
         return Decode<T>(Encoding.UTF8.GetString(buf.ToArray()));
     }
+}
+
+/// <summary>Nomes dos comandos do canal.</summary>
+public static class Cmd
+{
+    public const string Status = "status";
+    public const string SetupDisk = "setup.disk";
+    public const string SetupServer = "setup.server";
+    public const string Forget = "destination.forget";
+    public const string BackupNow = "backup.now";
+    public const string SetExclusions = "exclusions.set";
+    public const string Points = "points.list";
+    public const string ListDir = "dir.list";
+    public const string Restore = "restore";
+    public const string Ack = "alerts.ack";
 }

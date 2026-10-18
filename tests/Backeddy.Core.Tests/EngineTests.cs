@@ -1,0 +1,310 @@
+using System.Net;
+using System.Text;
+using Backeddy.Core;
+using Xunit;
+
+public class SourcesTests
+{
+    [Fact]
+    public void ProfileAndOtherDrivesButNotSystemOrDestination()
+    {
+        var s = Sources.Compute(@"C:\Users\ana", new[] { @"C:\", @"D:\", "E:", @"F:\" }, @"C:\", @"F:\");
+        Assert.Equal(new[] { @"C:\Users\ana", @"D:\", @"E:\" }, s.Select(x => x.Path).ToArray());
+        Assert.Equal("profile", s[0].Label);
+        Assert.Equal("drive", s[1].Label);
+    }
+
+    [Fact]
+    public void UserExclusionsBecomeAnchoredIgnoreRules()
+    {
+        var profile = new SourceInfo(@"C:\Users\ana", "profile");
+        var rules = Sources.Ignores(profile, new[] { @"C:\Users\ana\Downloads", @"C:\Users\ana\Jogos [old]\", @"D:\Filmes" });
+        Assert.Contains("/Downloads/", rules);
+        Assert.Contains(@"/Jogos \[old\]/", rules);
+        Assert.DoesNotContain(rules, r => r.Contains("Filmes"));
+        Assert.Contains("/AppData/Local/Temp/", rules);
+        Assert.Contains("/OneDrive/", rules);
+    }
+
+    [Fact]
+    public void DriveRulesSkipSystemFiles()
+    {
+        var d = new SourceInfo(@"D:\", "drive");
+        var rules = Sources.Ignores(d, new[] { @"D:\Filmes" });
+        Assert.Contains("/$Recycle.Bin/", rules);
+        Assert.Contains("/pagefile.sys", rules);
+        Assert.Contains("/Filmes/", rules);
+        Assert.True(Sources.IsExcludedEntirely(d, new[] { @"D:" }));
+        Assert.False(Sources.IsExcludedEntirely(d, new[] { @"D:\Filmes" }));
+    }
+}
+
+public class RecoveryKeyTests
+{
+    [Fact]
+    public void NewKeysAreGroupedAndUnambiguous()
+    {
+        var k = RecoveryKey.New();
+        Assert.Equal(29, k.Length);   // 24 caracteres + 5 hífens
+        Assert.Equal(6, k.Split('-').Length);
+        Assert.DoesNotContain(k, c => "01OIL".Contains(c));
+        Assert.NotEqual(k, RecoveryKey.New());
+    }
+
+    [Fact]
+    public void TypedKeyIsNormalized()
+    {
+        var k = RecoveryKey.New();
+        var messy = " " + k.Replace("-", " ").ToLowerInvariant() + " ";
+        Assert.Equal(k, RecoveryKey.Normalize(messy));
+        Assert.Null(RecoveryKey.Normalize("ABCD-EFGH"));
+        Assert.Null(RecoveryKey.Normalize(k.Replace(k[0], 'O')));
+    }
+}
+
+public class ScheduleTests
+{
+    static readonly DateTimeOffset Now = new(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+    static BackupConfig Cfg(DateTimeOffset? ok, DateTimeOffset? tried) =>
+        new() { Destination = DestinationKind.Disk, LastSuccess = ok, LastAttempt = tried };
+
+    [Fact]
+    public void RunsHourly()
+    {
+        Assert.Equal(Decision.Run, Schedule.Decide(Cfg(null, null), Now, false, false, null, true));
+        Assert.Equal(Decision.NotDue, Schedule.Decide(Cfg(Now.AddMinutes(-30), Now.AddMinutes(-30)), Now, false, false, null, true));
+        Assert.Equal(Decision.Run, Schedule.Decide(Cfg(Now.AddMinutes(-61), Now.AddMinutes(-61)), Now, false, false, null, true));
+    }
+
+    [Fact]
+    public void RetriesFifteenMinutesAfterAFailure()
+    {
+        var c = Cfg(Now.AddHours(-5), Now.AddMinutes(-10));
+        Assert.Equal(Decision.NotDue, Schedule.Decide(c, Now, false, false, null, true));
+        Assert.Equal(Now.AddMinutes(5), Schedule.Next(c));
+        Assert.Equal(Decision.Run, Schedule.Decide(c, Now.AddMinutes(6), false, false, null, true));
+    }
+
+    [Fact]
+    public void WaitsForBatteryAndDestination()
+    {
+        var c = Cfg(null, null);
+        Assert.Equal(Decision.LowBattery, Schedule.Decide(c, Now, false, true, 15, true));
+        Assert.Equal(Decision.Run, Schedule.Decide(c, Now, false, true, 50, true));
+        Assert.Equal(Decision.Run, Schedule.Decide(c, Now, true, true, 15, true));   // "Fazer backup agora" ignora a bateria
+        Assert.Equal(Decision.DestinationMissing, Schedule.Decide(c, Now, false, false, null, false));
+        Assert.Equal(Decision.NotConfigured, Schedule.Decide(new BackupConfig(), Now, true, false, null, true));
+    }
+}
+
+public class KopiaTests
+{
+    const string SnapJson = """
+    [
+      {"id":"a1","source":{"host":"pc","userName":"backeddy","path":"C:\\Users\\ana"},"startTime":"2026-10-17T10:00:05Z",
+       "rootEntry":{"name":"ana","type":"d","obj":"kA1","summ":{"size":1000,"files":10,"dirs":2}}},
+      {"id":"a2","source":{"host":"pc","userName":"backeddy","path":"D:\\"},"startTime":"2026-10-17T10:03:00Z",
+       "rootEntry":{"name":"D:","type":"d","obj":"kD1","summ":{"size":500,"files":3}}},
+      {"id":"b1","source":{"host":"pc","userName":"backeddy","path":"C:\\Users\\ana"},"startTime":"2026-10-17T11:00:00Z",
+       "rootEntry":{"name":"ana","type":"d","obj":"kA2","summ":{"size":1100,"files":11}}},
+      {"id":"x","source":{"path":"C:\\Users\\ana"},"startTime":"2026-10-17T09:00:00Z","rootEntry":{}}
+    ]
+    """;
+
+    [Fact]
+    public void SnapshotsAreReadAndGroupedIntoMoments()
+    {
+        var snaps = KopiaCli.ParseSnapshots(SnapJson);
+        Assert.Equal(3, snaps.Count);
+        Assert.Equal(1000, snaps[0].Bytes);
+        var sources = new List<SourceInfo> { new(@"C:\Users\ana", "profile"), new(@"D:\", "drive") };
+        var points = KopiaCli.GroupPoints(snaps, sources);
+        Assert.Equal(2, points.Count);
+        Assert.Single(points[0].Items);
+        Assert.Equal("kA2", points[0].Items[0].Obj);
+        Assert.Equal(new[] { "kA1", "kD1" }, points[1].Items.Select(i => i.Obj).ToArray());
+        Assert.Equal("profile", points[1].Items[0].Label);
+    }
+
+    [Fact]
+    public void DirectoryListingPutsFoldersFirst()
+    {
+        const string dir = """
+        {"stream":"kopia:directory","entries":[
+          {"name":"notas.txt","type":"f","mode":"0666","mtime":"2026-10-01T12:00:00Z","size":42,"obj":"f1"},
+          {"name":"Fotos","type":"d","mode":"0777","mtime":"2026-10-02T12:00:00Z","obj":"kF","summ":{"size":9000,"files":3}},
+          {"name":"semobj","type":"f"}
+        ]}
+        """;
+        var e = KopiaCli.ParseDirectory(dir);
+        Assert.Equal(2, e.Count);
+        Assert.True(e[0].IsDir);
+        Assert.Equal(9000, e[0].Size);
+        Assert.Equal(42, e[1].Size);
+    }
+
+    [Fact]
+    public void ErrorsAreClassified()
+    {
+        Assert.Equal(Err.WrongKey, KopiaCli.Classify("ERROR invalid repository password"));
+        Assert.Equal(Err.Certificate, KopiaCli.Classify("x509: certificate signed by unknown authority"));
+        Assert.Equal(Err.Unreachable, KopiaCli.Classify("dial tcp: connectex: No connection could be made"));
+        Assert.Equal(Err.NoSpace, KopiaCli.Classify("write: There is not enough space on the disk"));
+        Assert.Equal(Err.Unknown, KopiaCli.Classify("boom"));
+    }
+
+    [Fact]
+    public void PasswordsNeverGoOnTheCommandLine()
+    {
+        var all = KopiaCli.ConnectServer("https://x.local:51515", "ab", "backeddy", "pc")
+            .Concat(KopiaCli.CreateFilesystem(@"E:\Backeddy", "pc")).Concat(KopiaCli.ConnectFilesystem(@"E:\Backeddy", "pc"));
+        Assert.DoesNotContain(all, a => a.Contains("password", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("--no-persist-credentials", KopiaCli.ConnectServer("u", "f", "u", "h"));
+        var pol = KopiaCli.SourcePolicy(@"D:\", new[] { "/a/", "/b/" });
+        Assert.Equal(2, pol.Count(a => a == "--add-ignore"));
+    }
+}
+
+public class ServerClientTests
+{
+    sealed class Fake(Func<HttpRequestMessage, HttpResponseMessage> f) : HttpMessageHandler
+    {
+        public List<HttpRequestMessage> Seen { get; } = new();
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
+        {
+            Seen.Add(r);
+            return Task.FromResult(f(r));
+        }
+    }
+
+    static HttpResponseMessage Json(HttpStatusCode code, string body) =>
+        new(code) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
+    [Fact]
+    public async Task PairFallsBackToTheIpAndReadsTheAnswer()
+    {
+        var fake = new Fake(r => r.RequestUri!.Host == "casa.local"
+            ? throw new HttpRequestException("no such host")
+            : Json(HttpStatusCode.OK, """{"pc":"pc-sala","username":"backeddy","hostname":"pc-sala","password":"x","url":"https://casa.local:51515","fingerprint":"ab","name":"Casa"}"""));
+        var (r, err) = await new ServerClient(new HttpClient(fake)).PairAsync(new[] { "casa.local", "192.0.2.5" }, "s", "PC-SALA");
+        Assert.Null(err);
+        Assert.Equal("pc-sala", r!.Hostname);
+        Assert.Equal("ab", r.Fingerprint);
+        Assert.Equal(2, fake.Seen.Count);
+    }
+
+    [Fact]
+    public async Task WrongPasswordAndOldServerAreReported()
+    {
+        var c401 = new ServerClient(new HttpClient(new Fake(_ => Json(HttpStatusCode.Unauthorized, "wrong"))));
+        Assert.Equal(Err.WrongPassword, (await c401.PairAsync(new[] { "h" }, "x", "pc")).Error);
+        var c404 = new ServerClient(new HttpClient(new Fake(_ => Json(HttpStatusCode.NotFound, ""))));
+        Assert.Equal("oldServer", (await c404.PairAsync(new[] { "h" }, "x", "pc")).Error);
+    }
+
+    [Fact]
+    public async Task AlertsUseBasicAuth()
+    {
+        var fake = new Fake(_ => Json(HttpStatusCode.OK, """{"name":"Casa","alerts":[{"ID":"degraded","Text":"Falta um disco"}],"status":"..."}"""));
+        var alerts = await new ServerClient(new HttpClient(fake)).AlertsAsync(new[] { "h" }, "segredo");
+        Assert.Single(alerts!);
+        Assert.Equal("degraded", alerts![0].Id);
+        Assert.Equal("Basic", fake.Seen[0].Headers.Authorization!.Scheme);
+    }
+}
+
+public class ConfigTests
+{
+    [Fact]
+    public void SavesAndLoads()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "bk-" + Guid.NewGuid().ToString("N"), "config.json");
+        var c = new BackupConfig { Destination = DestinationKind.Disk, DiskRoot = @"E:\", DiskLabel = "Backup", Excluded = { @"C:\x" } };
+        c.Save(path);
+        var back = BackupConfig.Load(path);
+        Assert.Equal(DestinationKind.Disk, back.Destination);
+        Assert.Equal("Backup (E:)", back.DisplayName);
+        Assert.Equal(@"E:\Backeddy", back.DiskRepo);
+        Assert.Single(back.Excluded);
+        Assert.Equal(DestinationKind.None, BackupConfig.Load(path + ".nao-existe").Destination);
+    }
+
+    [Fact]
+    public void RequestsCarryTypedData()
+    {
+        var req = Ipc.Request(Cmd.SetupDisk, new DiskSetup(@"E:\", null, @"C:\Users\ana", "ana"));
+        var back = Ipc.Decode<IpcRequest>(Ipc.Encode(req))!;
+        Assert.Equal(Cmd.SetupDisk, back.Cmd);
+        Assert.Equal(@"E:\", Ipc.From<DiskSetup>(back.Data)!.Root);
+        var resp = Ipc.Decode<IpcResponse>(Ipc.Encode(Ipc.Fail(Err.WrongKey)))!;
+        Assert.False(resp.Ok);
+        Assert.Equal(Err.WrongKey, resp.Error);
+    }
+}
+
+public class RestorePlanTests
+{
+    static readonly DateTimeOffset When = new DateTimeOffset(2026, 10, 17, 10, 0, 0, TimeSpan.Zero).ToLocalTime();
+
+    [Fact]
+    public void FilesKeepTheirExtension()
+    {
+        var p = RestorePlan.Beside(@"C:\Users\ana\Docs\nota.txt", false, When, "restaurado", _ => false);
+        Assert.Equal(@"C:\Users\ana\Docs\nota (restaurado 2026-10-17 " + When.ToString("HH") + "h00).txt", p);
+    }
+
+    [Fact]
+    public void FoldersGetANumberWhenTheNameIsTaken()
+    {
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var first = RestorePlan.Beside(@"D:\Fotos.2020\", true, When, "restored", taken.Contains);
+        Assert.StartsWith(@"D:\Fotos.2020 (restored 2026-10-17 ", first);
+        Assert.EndsWith(")", first);
+        taken.Add(first);
+        var second = RestorePlan.Beside(@"D:\Fotos.2020", true, When, "restored", taken.Contains);
+        Assert.EndsWith(" 2)", second);
+    }
+
+    [Fact]
+    public void OnlyInsideTheBackedUpFolders()
+    {
+        var src = new[] { new SourceInfo(@"C:\Users\ana", "profile"), new SourceInfo(@"D:\", "drive") };
+        Assert.True(RestorePlan.InsideSources(@"C:\Users\ana\Docs\a.txt", src));
+        Assert.True(RestorePlan.InsideSources(@"D:\Filmes", src));
+        Assert.False(RestorePlan.InsideSources(@"C:\Windows\System32\x.dll", src));
+        Assert.False(RestorePlan.InsideSources(@"C:\Users\anabel\x", src));
+        Assert.False(RestorePlan.InsideSources(@"C:\Users\ana\..\..\Windows\x", src));
+    }
+}
+
+public class FormatTests
+{
+    [Fact]
+    public void SizesAndDates()
+    {
+        var old = Strings.Current;
+        try
+        {
+            Strings.Current = Strings.Lang.Pt;
+            Assert.Equal("512 B", Format.Size(512));
+            Assert.Equal("1,5 KB", Format.Size(1536));
+            Assert.Equal("20 GB", Format.Size(20L << 30));
+            var now = new DateTimeOffset(new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Local));
+            Assert.StartsWith("hoje", Format.When(now.AddHours(-1), now));
+            Assert.StartsWith("ontem", Format.When(now.AddDays(-1), now));
+            Assert.Equal(Strings.T("err.wrongKey"), Format.Error(Err.WrongKey));
+            Assert.Equal(Strings.T("err.unknown"), Format.Error("qualquer"));
+            Strings.Current = Strings.Lang.En;
+            Assert.Equal("1.5 KB", Format.Size(1536));
+        }
+        finally { Strings.Current = old; }
+    }
+
+    [Fact]
+    public void EveryErrorHasAText()
+    {
+        foreach (var f in typeof(Err).GetFields())
+            Assert.True(Strings.Keys.Contains("err." + f.GetValue(null)), "falta err." + f.GetValue(null));
+        Assert.True(Strings.Keys.Contains("err.kopiaMissing"));
+    }
+}

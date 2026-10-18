@@ -12,6 +12,9 @@ on:
 permissions:
   contents: write
 
+env:
+  KOPIA_VERSION: '0.19.0'
+
 jobs:
   build:
     runs-on: windows-latest
@@ -35,6 +38,33 @@ jobs:
 
       - name: Publicar o serviço
         run: dotnet publish src/Backeddy.Service -c Release -r win-x64 --self-contained true -p:Version=${{ env.VERSION }} -o out/service
+
+      # O backup em si é feito pelo Kopia (kopia.io, licença Apache 2.0), numa versão fixa, ao lado do serviço.
+      - name: Baixar o Kopia ${{ env.KOPIA_VERSION }}
+        shell: pwsh
+        run: |
+          $v = $env:KOPIA_VERSION
+          $base = "https://github.com/kopia/kopia/releases/download/v$v"
+          $zip = "kopia-$v-windows-x64.zip"
+          New-Item -ItemType Directory -Force -Path work | Out-Null
+          Invoke-WebRequest "$base/$zip" -OutFile "work\$zip"
+          $hash = (Get-FileHash "work\$zip" -Algorithm SHA256).Hash.ToLower()
+          Write-Host "SHA-256 de ${zip}: $hash"
+          $sums = $null
+          try { Invoke-WebRequest "$base/checksums.txt" -OutFile work\checksums.txt; $sums = "work\checksums.txt" }
+          catch { Write-Warning "checksums.txt não encontrado; seguindo só com o SHA-256 acima" }
+          if ($sums) {
+            $line = Select-String -Path $sums -Pattern ([regex]::Escape($zip)) | Select-Object -First 1
+            if ($line -and -not $line.Line.ToLower().StartsWith($hash)) { throw "SHA-256 não confere com checksums.txt" }
+            if ($line) { Write-Host "Conferido com checksums.txt" }
+          }
+          Expand-Archive "work\$zip" -DestinationPath work\kopia -Force
+          $exe = Get-ChildItem work\kopia -Recurse -Filter kopia.exe | Select-Object -First 1
+          if (-not $exe) { throw "kopia.exe não está no zip" }
+          Copy-Item $exe.FullName out\service\kopia.exe
+          $lic = Get-ChildItem work\kopia -Recurse -Filter LICENSE* | Select-Object -First 1
+          if ($lic) { Copy-Item $lic.FullName out\service\kopia-LICENSE.txt }
+          & out\service\kopia.exe --version
 
       - name: Publicar o app
         run: dotnet publish src/Backeddy.App -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:Version=${{ env.VERSION }} -o out/app

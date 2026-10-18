@@ -7,14 +7,12 @@ namespace Backeddy.Service;
 
 /// <summary>
 /// Canal local com o app. O serviço roda como sistema; qualquer usuário conectado ao PC pode perguntar
-/// a situação (por enquanto só leitura).
+/// a situação, mas só quem configurou o Backeddy pode mudar algo (o Engine confere o nome de quem chamou).
 /// </summary>
-public sealed class PipeServer(StatusStore store, ILogger<PipeServer> log) : BackgroundService
+public sealed class PipeServer(Engine engine, ILogger<PipeServer> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
-        Directory.CreateDirectory(AppInfo.LogDir);
-        log.LogInformation("Backeddy {Version} iniciado", AppInfo.Version);
         while (!stop.IsCancellationRequested)
         {
             NamedPipeServerStream? pipe = null;
@@ -22,7 +20,7 @@ public sealed class PipeServer(StatusStore store, ILogger<PipeServer> log) : Bac
             {
                 pipe = NamedPipeServerStreamAcl.Create(AppInfo.PipeName, PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous,
-                    4096, 4096, Security());
+                    65536, 65536, Security());
                 await pipe.WaitForConnectionAsync(stop);
                 var conn = pipe;
                 pipe = null;
@@ -47,15 +45,14 @@ public sealed class PipeServer(StatusStore store, ILogger<PipeServer> log) : Bac
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stop);
                 timeout.CancelAfter(TimeSpan.FromSeconds(10));
                 var req = await Ipc.ReadAsync<IpcRequest>(conn, timeout.Token);
-                switch (req?.Cmd)
-                {
-                    case "status":
-                        await Ipc.WriteAsync(conn, store.Get(), timeout.Token);
-                        break;
-                    default:
-                        await Ipc.WriteAsync(conn, new { error = "unknown command" }, timeout.Token);
-                        break;
-                }
+                if (req is null) return;
+                string? caller = null;
+                try { caller = conn.GetImpersonationUserName(); } catch (Exception) { }
+                // configurar e listar podem demorar (rede, HD lento): até 10 minutos
+                using var work = CancellationTokenSource.CreateLinkedTokenSource(stop);
+                work.CancelAfter(TimeSpan.FromMinutes(10));
+                var resp = await engine.HandleAsync(req, caller, work.Token);
+                await Ipc.WriteAsync(conn, resp, work.Token);
             }
             catch (Exception e) when (e is IOException or OperationCanceledException) { }
         }

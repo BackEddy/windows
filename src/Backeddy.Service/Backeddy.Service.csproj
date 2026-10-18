@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
-  <!-- Serviço do Windows (roda como sistema): agenda e faz os backups. Nesta versão só responde ao app. -->
+  <!-- Serviço do Windows (roda como sistema): agenda e faz os backups. Agenda e faz os backups com o kopia.exe que vem junto. -->
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <OutputType>Exe</OutputType>

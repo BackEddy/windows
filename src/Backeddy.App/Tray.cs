@@ -11,7 +11,8 @@ namespace Backeddy.App;
 sealed class Tray : IDisposable
 {
     const uint WM_APP = 0x8000, WM_TRAY = WM_APP + 1, WM_NULL = 0, WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205;
-    const uint NIM_ADD = 0, NIM_DELETE = 2, NIF_MESSAGE = 1, NIF_ICON = 2, NIF_TIP = 4;
+    const uint NIM_ADD = 0, NIM_MODIFY = 1, NIM_DELETE = 2, NIF_MESSAGE = 1, NIF_ICON = 2, NIF_TIP = 4, NIF_INFO = 0x10;
+    const uint NIIF_WARNING = 2, WM_BALLOONUSERCLICK = 0x0405;
     const uint MF_STRING = 0, MF_SEPARATOR = 0x800, TPM_RIGHTBUTTON = 0x2, TPM_RETURNCMD = 0x100;
     const uint IMAGE_ICON = 1, LR_LOADFROMFILE = 0x10;
     const int SM_CXSMICON = 49, SM_CYSMICON = 50;
@@ -56,6 +57,18 @@ sealed class Tray : IDisposable
         Shell_NotifyIcon(NIM_ADD, ref d);
     }
 
+    /// <summary>Aviso perto do relógio (vira notificação no Windows 10/11). Clicar nele abre a janela.</summary>
+    public void Notify(string title, string text)
+    {
+        if (disposed) return;
+        var d = Data();
+        d.uFlags = NIF_INFO;
+        d.szInfoTitle = title.Length > 63 ? title[..63] : title;
+        d.szInfo = text.Length > 255 ? text[..255] : text;
+        d.dwInfoFlags = NIIF_WARNING;
+        Shell_NotifyIcon(NIM_MODIFY, ref d);
+    }
+
     NOTIFYICONDATA Data() => new()
     {
         cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATA>(),
@@ -71,7 +84,7 @@ sealed class Tray : IDisposable
         if (msg == WM_TRAY)
         {
             uint ev = (uint)(lParam.ToInt64() & 0xFFFF);
-            if (ev == WM_LBUTTONUP) onOpen();
+            if (ev == WM_LBUTTONUP || ev == WM_BALLOONUSERCLICK) onOpen();
             else if (ev == WM_RBUTTONUP) ShowMenu();
             return IntPtr.Zero;
         }
