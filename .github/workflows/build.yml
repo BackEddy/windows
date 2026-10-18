@@ -8,6 +8,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# publicar a release precisa de escrita no repositório (repositórios novos dão só leitura por padrão)
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
