@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{ABA3819A-DED9-4BC8-9D30-3F9C4216E63B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backeddy.Core", "src\Backeddy.Core\Backeddy.Core.csproj", "{9C3F7E2F-01C5-478C-9D13-766566B23C36}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backeddy.Service", "src\Backeddy.Service\Backeddy.Service.csproj", "{745A0F95-03B8-4176-B877-84EFD55C9DA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backeddy.App", "src\Backeddy.App\Backeddy.App.csproj", "{FDB97DA0-D4D6-446C-BB42-9DEB87028595}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5B93A8F2-99CC-4B02-98CC-198A2B44879B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backeddy.Core.Tests", "tests\Backeddy.Core.Tests\Backeddy.Core.Tests.csproj", "{987AEEE9-409D-498A-9343-E38F20288B1B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9C3F7E2F-01C5-478C-9D13-766566B23C36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C3F7E2F-01C5-478C-9D13-766566B23C36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C3F7E2F-01C5-478C-9D13-766566B23C36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C3F7E2F-01C5-478C-9D13-766566B23C36}.Release|Any CPU.Build.0 = Release|Any CPU
+		{745A0F95-03B8-4176-B877-84EFD55C9DA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{745A0F95-03B8-4176-B877-84EFD55C9DA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{745A0F95-03B8-4176-B877-84EFD55C9DA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{745A0F95-03B8-4176-B877-84EFD55C9DA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDB97DA0-D4D6-446C-BB42-9DEB87028595}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{FDB97DA0-D4D6-446C-BB42-9DEB87028595}.Debug|Any CPU.Build.0 = Debug|x64
+		{FDB97DA0-D4D6-446C-BB42-9DEB87028595}.Release|Any CPU.ActiveCfg = Release|x64
+		{FDB97DA0-D4D6-446C-BB42-9DEB87028595}.Release|Any CPU.Build.0 = Release|x64
+		{987AEEE9-409D-498A-9343-E38F20288B1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{987AEEE9-409D-498A-9343-E38F20288B1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{987AEEE9-409D-498A-9343-E38F20288B1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{987AEEE9-409D-498A-9343-E38F20288B1B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{9C3F7E2F-01C5-478C-9D13-766566B23C36} = {ABA3819A-DED9-4BC8-9D30-3F9C4216E63B}
+		{745A0F95-03B8-4176-B877-84EFD55C9DA1} = {ABA3819A-DED9-4BC8-9D30-3F9C4216E63B}
+		{FDB97DA0-D4D6-446C-BB42-9DEB87028595} = {ABA3819A-DED9-4BC8-9D30-3F9C4216E63B}
+		{987AEEE9-409D-498A-9343-E38F20288B1B} = {5B93A8F2-99CC-4B02-98CC-198A2B44879B}
+	EndGlobalSection
+EndGlobal

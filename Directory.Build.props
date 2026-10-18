@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Company>Eddy Antonini</Company>
+    <Product>Backeddy for Windows</Product>
+    <Copyright>© 2026 Eddy Antonini — MIT License</Copyright>
+    <Version Condition="'$(Version)' == ''">0.0.1</Version>
+  </PropertyGroup>
+</Project>

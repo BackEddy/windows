@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Peças comuns ao app e ao serviço, sem dependências (testadas em qualquer sistema) -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Backeddy.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
