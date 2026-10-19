@@ -59,3 +59,9 @@ Se o CI falhou e você recebeu o log: corrija SÓ o que o log mostra e acrescent
 
 ## Armadilhas de C# que já deram erro
 - `var x = cond ? null : valorStruct;` não compila (CS0173). Declare o tipo: `DateTimeOffset? x = cond ? null : valor;`.
+
+## Economia de tokens (vale para toda tarefa)
+- Respostas curtas: sem explicações longas, sem narrar o que vai fazer. O relatório final é a única prosa.
+- Não pesquise na web. Se a spec e a API discordarem, use o que o código do repositório já faz e relate a dúvida.
+- Leia só os arquivos que a spec cita (e o que eles chamam diretamente). Não varra o repositório.
+- Rode `dotnet test tests/Backeddy.Core.Tests` uma vez no fim (e de novo só se corrigir algo).

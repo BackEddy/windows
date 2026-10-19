@@ -9,3 +9,5 @@ work/
 # fluxo opencode
 tasks/*.relatorio.md
 tasks/.*.ci-tentativas
+tasks/*.resumo.txt
+tasks/*.log.txt
