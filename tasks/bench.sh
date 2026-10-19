@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.." || exit 1
 REPO=$(pwd)
 BASE="${BASE:-fae3b2c}"
 SPEC="${SPEC:-tasks/bench/B1-atraso-core.md}"
-REF="tasks/bench/ReferenceTests.cs"
+REF="${REF:-tasks/bench/ReferenceTests.cs}"
 OUT="$HOME/oc-bench"
 DB="$HOME/.local/share/opencode/opencode.db"
 TIMEOUT=900
