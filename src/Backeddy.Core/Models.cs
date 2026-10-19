@@ -5,7 +5,10 @@ public enum DestinationKind { None, Disk, Server }
 public enum BackupState { NotConfigured, Idle, Running, Waiting, Error }
 
 /// <summary>Por que o backup está esperando.</summary>
-public enum WaitReason { None, LowBattery, DestinationMissing }
+public enum WaitReason { None, LowBattery, DestinationMissing, Paused }
+
+/// <summary>Pausa pedida pelo app; "Resume" cancela a pausa atual.</summary>
+public enum PauseKind { Resume, Hour, Tomorrow }
 
 public sealed record Alert(string Id, string Text);
 
@@ -23,6 +26,7 @@ public sealed record ServiceStatus
     public string? DestinationName { get; init; }
     public DateTimeOffset? LastBackup { get; init; }
     public DateTimeOffset? NextBackup { get; init; }
+    public DateTimeOffset? PausedUntil { get; init; }
     public DateTimeOffset? RunningSince { get; init; }
     public string? LastError { get; init; }
     public WaitReason Wait { get; init; }
@@ -39,6 +43,7 @@ public sealed record DiskSetup(string Root, string? Key, string Profile, string 
 public sealed record DiskSetupResult(string? Key, bool NeedsKey);
 public sealed record ServerSetup(string Host, string? Ip, string Password, string PcName, string Profile, string UserName);
 public sealed record ExclusionsPayload(List<string> Paths);
+public sealed record PauseRequest(PauseKind Kind);
 public sealed record PointItem(string Source, string Label, string Obj);
 public sealed record TimePoint(string Id, DateTimeOffset Time, List<PointItem> Items);
 public sealed record DirRequest(string Obj);

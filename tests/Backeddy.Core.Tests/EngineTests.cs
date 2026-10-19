@@ -95,6 +95,42 @@ public class ScheduleTests
         Assert.Equal(Decision.DestinationMissing, Schedule.Decide(c, Now, false, false, null, false));
         Assert.Equal(Decision.NotConfigured, Schedule.Decide(new BackupConfig(), Now, true, false, null, true));
     }
+
+    [Fact]
+    public void PausedBackupWaitsUntilTheEnd()
+    {
+        var c = Cfg(null, null) with { PausedUntil = Now.AddMinutes(30) };
+        Assert.Equal(Decision.Paused, Schedule.Decide(c, Now, false, false, null, true));
+        Assert.Equal(Decision.Run, Schedule.Decide(c, Now.AddMinutes(30), false, false, null, true));   // pausa venceu e era a hora
+    }
+
+    [Fact]
+    public void ManualBackupIgnoresThePause()
+    {
+        var c = Cfg(Now.AddMinutes(-30), Now.AddMinutes(-30)) with { PausedUntil = Now.AddHours(2) };
+        Assert.Equal(Decision.Paused, Schedule.Decide(c, Now, false, false, null, true));
+        Assert.Equal(Decision.Run, Schedule.Decide(c, Now, true, false, null, true));
+    }
+
+    [Fact]
+    public void NextBackupRespectsThePause()
+    {
+        var c = Cfg(Now.AddMinutes(-30), Now.AddMinutes(-30));   // próximo calculado: daqui a 30 minutos
+        Assert.Equal(Now.AddHours(2), Schedule.Next(c with { PausedUntil = Now.AddHours(2) }));
+        Assert.Equal(Now.AddMinutes(30), Schedule.Next(c with { PausedUntil = Now.AddHours(-1) }));   // pausa vencida não interfere
+        Assert.Equal(Now.AddHours(1), Schedule.Next(new BackupConfig { Destination = DestinationKind.Disk, PausedUntil = Now.AddHours(1) }));
+    }
+
+    [Fact]
+    public void PauseUntilComputesTheEnd()
+    {
+        Assert.Null(Schedule.PauseUntil(PauseKind.Resume, Now));
+        Assert.Equal(Now.AddHours(1), Schedule.PauseUntil(PauseKind.Hour, Now));
+        Assert.Equal(new DateTimeOffset(2026, 10, 18, 8, 0, 0, TimeSpan.Zero), Schedule.PauseUntil(PauseKind.Tomorrow, Now));
+        // madrugada em UTC-3: 08:00 locais do dia seguinte
+        var lateNight = new DateTimeOffset(2026, 10, 17, 2, 0, 0, TimeSpan.FromHours(-3));
+        Assert.Equal(new DateTimeOffset(2026, 10, 18, 8, 0, 0, TimeSpan.FromHours(-3)), Schedule.PauseUntil(PauseKind.Tomorrow, lateNight));
+    }
 }
 
 public class KopiaTests

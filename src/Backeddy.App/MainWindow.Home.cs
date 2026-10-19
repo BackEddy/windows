@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Backeddy.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace Backeddy.App;
 
@@ -16,6 +17,7 @@ public sealed partial class MainWindow
     StackPanel? homeBars, homeHeadRow;
     ProgressRing? homeSpinner;
     Button? homeBackupNow;
+    HyperlinkButton? homePause, homeResume;
     StackPanel? homeUpdate;
 
     void ShowHome()
@@ -30,6 +32,17 @@ public sealed partial class MainWindow
         homeBars = Ui.Column(8);
         homeUpdate = Ui.Column(0);
         homeBackupNow = Ui.Button(Strings.T("backupNow"), () => _ = BackupNowAsync(), accent: true);
+
+        // HyperlinkButton não tem a propriedade Flyout (só o Button tem); o menu vai no flyout anexado
+        var pause = Ui.Link(Strings.T("pauseBackups"), () => FlyoutBase.ShowAttachedFlyout(homePause!));
+        var pauseMenu = new MenuFlyout();
+        pauseMenu.Items.Add(Ui.MenuItem(Strings.T("pauseHour"), () => _ = PauseAsync(PauseKind.Hour)));
+        pauseMenu.Items.Add(Ui.MenuItem(Strings.T("pauseTomorrow"), () => _ = PauseAsync(PauseKind.Tomorrow)));
+        FlyoutBase.SetAttachedFlyout(pause, pauseMenu);
+        var resume = Ui.Link(Strings.T("pauseResume"), () => _ = PauseAsync(PauseKind.Resume));
+        homePause = pause;
+        homeResume = resume;
+        pause.Visibility = resume.Visibility = Visibility.Collapsed;   // UpdateHome mostra o link certo
 
         var facts = new Grid { ColumnSpacing = 16, RowSpacing = 6 };
         facts.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -57,6 +70,8 @@ public sealed partial class MainWindow
             Ui.Row(10, homeBackupNow, Ui.Button(Strings.T("restoreFiles"), ShowTimeline)),
             Ui.Column(6,
                 Ui.Link(Strings.T("whatIsBackedUp"), ShowExclusions),
+                pause,
+                resume,
                 Ui.Link(Strings.T("changeDestination"), () => _ = ChangeDestinationAsync())),
             Ui.Caption(Strings.F("versionLine", status?.Version ?? AppInfo.Version))), Page.Home);
         RenderUpdateBar();
@@ -70,11 +85,15 @@ public sealed partial class MainWindow
         bool server = st.Destination == DestinationKind.Server;
         homeSpinner!.Visibility = st.State == BackupState.Running ? Visibility.Visible : Visibility.Collapsed;
         homeBackupNow!.IsEnabled = st.State != BackupState.Running;
+        homePause!.Visibility = st.PausedUntil is null ? Visibility.Visible : Visibility.Collapsed;
+        homeResume!.Visibility = st.PausedUntil is not null ? Visibility.Visible : Visibility.Collapsed;
         (homeHeadline.Text, homeDetail!.Text) = st.State switch
         {
             BackupState.Running => (Strings.T("stateRunning"),
                 st.RunningSince is { } since ? Strings.F("runningSince", Format.Time(since)) : ""),
             BackupState.Waiting when st.Wait == WaitReason.LowBattery => (Strings.T("stateWaiting"), Strings.T("waitBattery")),
+            BackupState.Waiting when st.Wait == WaitReason.Paused => (Strings.T("statePaused"),
+                st.PausedUntil is { } until ? Strings.F("pausedUntil", Format.When(until, now)) : ""),
             BackupState.Waiting => (Strings.T("stateWaiting"),
                 Strings.F(server ? "waitServer" : "waitDisk", st.DestinationName ?? "")),
             BackupState.Error => (Strings.T("stateError"), Format.Error(st.LastError) + " " + Strings.T("retrySoon")),
@@ -137,6 +156,14 @@ public sealed partial class MainWindow
         var r = await ServiceClient.CallAsync(Cmd.Ack, new AckRequest(days), TimeSpan.FromSeconds(30));
         if (r?.Ok != true)
             await Ui.InfoAsync(XRoot, Strings.T("alertTitle"), ServiceClient.ErrorText(r), Strings.T("ok"));
+        await PollAsync();
+    }
+
+    async System.Threading.Tasks.Task PauseAsync(PauseKind kind)
+    {
+        var r = await ServiceClient.CallAsync(Cmd.Pause, new PauseRequest(kind));
+        if (r?.Ok != true)
+            await Ui.InfoAsync(XRoot, Strings.T(kind == PauseKind.Resume ? "pauseResume" : "pauseBackups"), ServiceClient.ErrorText(r), Strings.T("ok"));
         await PollAsync();
     }
 

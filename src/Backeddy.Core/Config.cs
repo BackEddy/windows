@@ -19,6 +19,7 @@ public sealed record BackupConfig
     public string? Profile { get; init; }           // C:\Users\nome
     public string? UserName { get; init; }
     public List<string> Excluded { get; init; } = new();
+    public DateTimeOffset? PausedUntil { get; init; }   // até quando os backups automáticos ficam pausados
     public DateTimeOffset? LastSuccess { get; init; }
     public DateTimeOffset? LastAttempt { get; init; }
     public string? LastError { get; init; }

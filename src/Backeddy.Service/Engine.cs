@@ -47,6 +47,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                 DestinationName = cfg.DisplayName,
                 LastBackup = cfg.LastSuccess,
                 NextBackup = running ? null : Schedule.Next(cfg),
+                PausedUntil = cfg.PausedUntil is { } p && p > DateTimeOffset.Now ? p : null,   // vencida é como se não existisse
                 RunningSince = runningSince,
                 LastError = cfg.LastError,
                 Wait = wait,
@@ -103,6 +104,12 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                     var ex = Ipc.From<ExclusionsPayload>(req.Data)?.Paths ?? new();
                     Update(c => c with { Excluded = ex.Distinct(StringComparer.OrdinalIgnoreCase).ToList() });
                     lock (gate) policiesDirty = true;
+                    return Ipc.Success();
+                case Cmd.Pause:
+                    if (cfg.Destination == DestinationKind.None) return Ipc.Fail(Err.NotConfigured);
+                    var pausedUntil = Schedule.PauseUntil(Ipc.From<PauseRequest>(req.Data)?.Kind ?? PauseKind.Resume, DateTimeOffset.Now);
+                    Update(c => c with { PausedUntil = pausedUntil });
+                    wake.Release();   // o agendador já recalcula o estado na hora
                     return Ipc.Success();
                 case Cmd.Points: return await PointsAsync(ct);
                 case Cmd.ListDir:
@@ -349,9 +356,11 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
             {
                 Decision.LowBattery => WaitReason.LowBattery,
                 Decision.DestinationMissing => WaitReason.DestinationMissing,
+                Decision.Paused => WaitReason.Paused,
                 _ => WaitReason.None,
             };
-            if (decision != Decision.NotDue) manualRequested = false;
+            // só apaga o pedido manual que este tick viu (ou satisfez com um backup); quem chegou no meio espera o próximo
+            if (manual || decision == Decision.Run) manualRequested = false;
         }
         if (decision == Decision.Run) await BackupAsync(stop);
     }

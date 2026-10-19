@@ -56,6 +56,14 @@ public class IpcTests
     public void EnumsAreReadableText() => Assert.Contains("\"state\":\"notConfigured\"", Ipc.Encode(new ServiceStatus()));
 
     [Fact]
+    public void PauseRequestRoundTrips()
+    {
+        var back = Ipc.Decode<IpcRequest>(Ipc.Encode(Ipc.Request(Cmd.Pause, new PauseRequest(PauseKind.Tomorrow))))!;
+        Assert.Equal(Cmd.Pause, back.Cmd);
+        Assert.Equal(PauseKind.Tomorrow, Ipc.From<PauseRequest>(back.Data)!.Kind);
+    }
+
+    [Fact]
     public void GarbageIsIgnored() => Assert.Null(Ipc.Decode<ServiceStatus>("{não é json"));
 }
 

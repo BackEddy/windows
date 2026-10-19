@@ -52,3 +52,6 @@ Ao terminar, escreva `tasks/NNN.relatorio.md` com no máximo 25 linhas, exatamen
 ```
 Se o CI falhou e você recebeu o log: corrija SÓ o que o log mostra e acrescente ao mesmo relatório uma seção
 `## Correção do CI (tentativa K)` com a causa e o que mudou.
+
+## Armadilhas de C# que já deram erro
+- `var x = cond ? null : valorStruct;` não compila (CS0173). Declare o tipo: `DateTimeOffset? x = cond ? null : valor;`.
