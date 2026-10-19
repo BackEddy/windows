@@ -131,6 +131,16 @@ public class ScheduleTests
         var lateNight = new DateTimeOffset(2026, 10, 17, 2, 0, 0, TimeSpan.FromHours(-3));
         Assert.Equal(new DateTimeOffset(2026, 10, 18, 8, 0, 0, TimeSpan.FromHours(-3)), Schedule.PauseUntil(PauseKind.Tomorrow, lateNight));
     }
+
+    [Fact]
+    public void OverdueAfterThreeDays()
+    {
+        Assert.Null(Schedule.OverdueDays(Cfg(Now - TimeSpan.FromDays(2) - TimeSpan.FromHours(23), null), Now));   // ainda não fez 3 dias
+        Assert.Equal(3, Schedule.OverdueDays(Cfg(Now - TimeSpan.FromDays(3), null), Now));
+        Assert.Equal(5, Schedule.OverdueDays(Cfg(Now - TimeSpan.FromDays(5) - TimeSpan.FromHours(12), null), Now));   // dias inteiros, para baixo
+        Assert.Null(Schedule.OverdueDays(Cfg(null, null), Now));   // sem backup ainda não é atraso
+        Assert.Null(Schedule.OverdueDays(new BackupConfig { LastSuccess = Now - TimeSpan.FromDays(9) }, Now));   // sem destino
+    }
 }
 
 public class KopiaTests

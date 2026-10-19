@@ -116,6 +116,10 @@ public sealed partial class MainWindow : Window
             if (!seenAlerts.Add(a.Id + "|" + a.Text)) continue;
             if (!firstPoll || !AppWindow.IsVisible) AlertRaised?.Invoke(Strings.T("alertTitle"), a.Text);
         }
+        // atraso de backup: uma notificação por valor de dias, no máximo uma por dia com o app aberto
+        if (st.OverdueDays is { } days && seenAlerts.Add("overdue|" + days) && (!firstPoll || !AppWindow.IsVisible))
+            AlertRaised?.Invoke(Strings.F("overdueTitle", days),
+                Strings.F(st.Destination == DestinationKind.Server ? "overdueServer" : "overdueDisk", st.DestinationName ?? ""));
         firstPoll = false;
     }
 

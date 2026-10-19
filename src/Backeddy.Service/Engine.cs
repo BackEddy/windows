@@ -53,6 +53,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                 Wait = wait,
                 LastFiles = cfg.LastFiles,
                 LastBytes = cfg.LastBytes,
+                OverdueDays = Schedule.OverdueDays(cfg, DateTimeOffset.Now),
                 Alerts = alerts.ToList(),
                 Sources = cfg.Profile is null ? new() : AllSources(),
                 Excluded = cfg.Excluded.ToList(),

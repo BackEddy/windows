@@ -109,6 +109,10 @@ public sealed partial class MainWindow
             : st.NextBackup is { } next ? (next <= now ? Strings.T("soon") : Format.When(next, now)) : "—";
 
         homeBars.Children.Clear();
+        if (st.OverdueDays is { } days)   // atraso de 3 dias ou mais: no topo, antes dos avisos do servidor
+            homeBars.Children.Add(Ui.Bar(InfoBarSeverity.Warning,
+                Strings.F("overdueTitle", days),
+                Strings.F(server ? "overdueServer" : "overdueDisk", st.DestinationName ?? "")));
         if (st.Message == "kopiaMissing")
             homeBars.Children.Add(Ui.Bar(InfoBarSeverity.Error, null, Strings.T("err.kopiaMissing")));
         foreach (var a in st.Alerts)

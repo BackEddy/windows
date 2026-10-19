@@ -32,6 +32,7 @@ public sealed record ServiceStatus
     public WaitReason Wait { get; init; }
     public long LastFiles { get; init; }
     public long LastBytes { get; init; }
+    public int? OverdueDays { get; init; }
     public List<Alert> Alerts { get; init; } = new();
     public List<SourceInfo> Sources { get; init; } = new();
     public List<string> Excluded { get; init; } = new();

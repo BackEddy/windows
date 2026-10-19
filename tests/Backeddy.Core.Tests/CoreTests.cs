@@ -64,6 +64,13 @@ public class IpcTests
     }
 
     [Fact]
+    public void OverdueDaysTravelsInTheStatus()
+    {
+        var back = Ipc.Decode<ServiceStatus>(Ipc.Encode(new ServiceStatus { OverdueDays = 4 }))!;
+        Assert.Equal(4, back.OverdueDays);
+    }
+
+    [Fact]
     public void GarbageIsIgnored() => Assert.Null(Ipc.Decode<ServiceStatus>("{não é json"));
 }
 

@@ -7,6 +7,7 @@ public static class Schedule
 {
     public static readonly TimeSpan Interval = TimeSpan.FromHours(1);
     public static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(15);
+    public static readonly TimeSpan OverdueAfter = TimeSpan.FromDays(3);
     public const int MinBattery = 20;
 
     public static DateTimeOffset? Next(BackupConfig c)
@@ -18,6 +19,15 @@ public static class Schedule
         DateTimeOffset? result = next == DateTimeOffset.MinValue ? null : next;
         // pausa futura empurra o próximo horário; pausa vencida o Decide já ignora
         return c.PausedUntil is { } until && (result is null || until > result) ? until : result;
+    }
+
+    /// <summary>Dias sem backup que dão motivo para avisar (3 ou mais); null quando não há o que avisar —
+    /// sem destino configurado ou sem backup nenhum ainda, que não é atraso.</summary>
+    public static int? OverdueDays(BackupConfig c, DateTimeOffset now)
+    {
+        if (c.Destination == DestinationKind.None || c.LastSuccess is not { } last) return null;
+        if (now - last < OverdueAfter) return null;
+        return (int)(now - last).TotalDays;
     }
 
     /// <summary>Quando a pausa pedida acaba: 1 hora ou 08:00 do dia seguinte, no horário do PC.</summary>
