@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Backeddy.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,6 +16,7 @@ public sealed partial class MainWindow
     StackPanel? homeBars, homeHeadRow;
     ProgressRing? homeSpinner;
     Button? homeBackupNow;
+    StackPanel? homeUpdate;
 
     void ShowHome()
     {
@@ -25,6 +28,7 @@ public sealed partial class MainWindow
         homeLast = Ui.Text("");
         homeNext = Ui.Text("");
         homeBars = Ui.Column(8);
+        homeUpdate = Ui.Column(0);
         homeBackupNow = Ui.Button(Strings.T("backupNow"), () => _ = BackupNowAsync(), accent: true);
 
         var facts = new Grid { ColumnSpacing = 16, RowSpacing = 6 };
@@ -46,6 +50,7 @@ public sealed partial class MainWindow
 
         Show(Ui.Column(18,
             Ui.Title("Backeddy"),
+            homeUpdate,
             Ui.Column(6, homeHeadRow, homeDetail),
             homeBars,
             facts,
@@ -54,6 +59,7 @@ public sealed partial class MainWindow
                 Ui.Link(Strings.T("whatIsBackedUp"), ShowExclusions),
                 Ui.Link(Strings.T("changeDestination"), () => _ = ChangeDestinationAsync())),
             Ui.Caption(Strings.F("versionLine", status?.Version ?? AppInfo.Version))), Page.Home);
+        RenderUpdateBar();
         if (status is not null) UpdateHome(status);
     }
 
@@ -155,5 +161,39 @@ public sealed partial class MainWindow
             Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = false });
         }
         catch (Exception) { }
+    }
+}
+
+// Aviso de versão nova (só avisa; quem baixa e instala é a pessoa).
+public sealed partial class MainWindow
+{
+    UpdateInfo? update;
+    DispatcherQueueTimer? updateTimer;
+
+    void StartUpdateChecks()
+    {
+        _ = CheckUpdateAsync();
+        updateTimer = DispatcherQueue.CreateTimer();
+        updateTimer.Interval = TimeSpan.FromHours(24);
+        updateTimer.Tick += (_, _) => _ = CheckUpdateAsync();
+        updateTimer.Start();
+    }
+
+    async Task CheckUpdateAsync()
+    {
+        var found = await UpdateCheck.CheckAsync(AppInfo.Version);
+        if (found is null || found == update) return;
+        update = found;
+        if (page == Page.Home) RenderUpdateBar();
+    }
+
+    void RenderUpdateBar()
+    {
+        if (homeUpdate is null) return;
+        homeUpdate.Children.Clear();
+        if (update is not { } u) return;
+        var bar = Ui.Bar(InfoBarSeverity.Informational, Strings.F("updateAvailable", u.Version), Strings.T("updateDetail"));
+        bar.ActionButton = Ui.Button(Strings.T("updateDownload"), () => OpenUrl(u.Url));
+        homeUpdate.Children.Add(bar);
     }
 }

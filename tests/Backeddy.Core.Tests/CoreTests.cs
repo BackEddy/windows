@@ -58,3 +58,47 @@ public class IpcTests
     [Fact]
     public void GarbageIsIgnored() => Assert.Null(Ipc.Decode<ServiceStatus>("{não é json"));
 }
+
+public class UpdateCheckTests
+{
+    [Theory]
+    [InlineData("v1.0.1", "1.0.0", true)]
+    [InlineData("1.1.0", "1.0.9", true)]
+    [InlineData("v1.10.0", "1.9.0", true)]
+    [InlineData("v1.0.0", "1.0.0", false)]
+    [InlineData("v1.0.0", "1.0.1", false)]
+    [InlineData("v2.0.0-beta", "1.5.0", true)]
+    [InlineData("v1.2", "1.2.0", false)]
+    [InlineData("lixo", "1.0.0", false)]
+    [InlineData("v1.1.0", "dev", false)]
+    [InlineData(null, "1.0.0", false)]
+    public void ComparesVersions(string? latest, string current, bool newer) =>
+        Assert.Equal(newer, UpdateCheck.IsNewer(latest, current));
+
+    [Fact]
+    public void ParsesNewRelease()
+    {
+        var json = "{\"tag_name\":\"v1.1.0\",\"html_url\":\"https://github.com/BackEddy/windows/releases/tag/v1.1.0\",\"draft\":false,\"prerelease\":false}";
+        var info = UpdateCheck.Parse(json, "1.0.0");
+        Assert.NotNull(info);
+        Assert.Equal("1.1.0", info!.Version);
+        Assert.EndsWith("/releases/tag/v1.1.0", info.Url);
+    }
+
+    [Fact]
+    public void IgnoresSameOlderPrereleaseAndGarbage()
+    {
+        Assert.Null(UpdateCheck.Parse("{\"tag_name\":\"v1.0.0\"}", "1.0.0"));
+        Assert.Null(UpdateCheck.Parse("{\"tag_name\":\"v0.9.0\"}", "1.0.0"));
+        Assert.Null(UpdateCheck.Parse("{\"tag_name\":\"v2.0.0\",\"prerelease\":true}", "1.0.0"));
+        Assert.Null(UpdateCheck.Parse("{\"tag_name\":\"v2.0.0\",\"draft\":true}", "1.0.0"));
+        Assert.Null(UpdateCheck.Parse("não é json", "1.0.0"));
+    }
+
+    [Fact]
+    public void ForeignLinkFallsBackToOurReleasesPage()
+    {
+        var json = "{\"tag_name\":\"v1.1.0\",\"html_url\":\"https://evil.example/x\"}";
+        Assert.Equal(AppInfo.RepoUrl + "/releases/latest", UpdateCheck.Parse(json, "1.0.0")!.Url);
+    }
+}

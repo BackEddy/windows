@@ -47,6 +47,7 @@ public sealed partial class MainWindow : Window
         timer.Tick += (_, _) => _ = PollAsync();
         timer.Start();
         _ = PollAsync();
+        StartUpdateChecks();
     }
 
     public void ShowAndFocus()
@@ -60,6 +61,7 @@ public sealed partial class MainWindow : Window
     {
         reallyClose = true;
         timer.Stop();
+        updateTimer?.Stop();
         Close();
     }
 
