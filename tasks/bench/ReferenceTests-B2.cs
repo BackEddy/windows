@@ -58,16 +58,15 @@ public class BenchReferenceTests
     [Fact]
     public void RefOrderWithOtherDecisions()
     {
-        var c = Q(22, 7);
-        c.LastSuccess = At(23).AddMinutes(-10);
+        var c = Q(22, 7) with { LastSuccess = At(23).AddMinutes(-10) };
         Assert.Equal(Decision.NotDue, D(c, At(23)));
         var due = Q(22, 7);
         Assert.Equal(Decision.Quiet, D(due, At(23), dest: false));
         Assert.Equal(Decision.Quiet, D(due, At(23), bat: true, pct: 10));
         Assert.Equal(Decision.DestinationMissing, D(due, At(12), dest: false));
-        var none = Q(22, 7); none.Destination = DestinationKind.None;
+        var none = Q(22, 7) with { Destination = DestinationKind.None };
         Assert.Equal(Decision.NotConfigured, D(none, At(23)));
-        var paused = Q(22, 7); paused.PausedUntil = At(23).AddHours(2);
+        var paused = Q(22, 7) with { PausedUntil = At(23).AddHours(2) };
         Assert.Equal(Decision.Paused, D(paused, At(23)));
     }
 

@@ -6,7 +6,7 @@ Tarefa-padrão nº 2 para comparar modelos. Escopo fechado: o App e o Service N�
 O usuário define uma janela diária em que o Backeddy não inicia backups automáticos (ex.: 22:00 às 07:00, para não pesar o PC à noite). "Fazer backup agora" continua funcionando.
 
 ## Comportamento
-- Duas novas opções em `BackupConfig` (`src/Backeddy.Core/Config.cs`): `public TimeSpan? QuietStart { get; set; }` e `public TimeSpan? QuietEnd { get; set; }` (hora do dia, de 00:00 a 23:59).
+- Duas novas opções em `BackupConfig` (`src/Backeddy.Core/Config.cs`): `public TimeSpan? QuietStart { get; init; }` e `public TimeSpan? QuietEnd { get; init; }` (hora do dia, de 00:00 a 23:59).
 - A janela só vale se as DUAS estiverem preenchidas. Com só uma ou nenhuma, não há horário silencioso.
 - O início é inclusivo e o fim é exclusivo: com 22:00–07:00, às 22:00 já é silencioso e às 07:00 já não é.
 - A janela pode cruzar a meia-noite (22:00–07:00) ou ficar no mesmo dia (13:00–15:00).
