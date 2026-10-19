@@ -75,6 +75,7 @@ public static class Cmd
     public const string BackupNow = "backup.now";
     public const string SetExclusions = "exclusions.set";
     public const string Pause = "pause.set";
+    public const string KeepAwake = "keepawake.set";
     public const string Points = "points.list";
     public const string ListDir = "dir.list";
     public const string Restore = "restore";

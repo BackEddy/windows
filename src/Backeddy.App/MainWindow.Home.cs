@@ -18,6 +18,8 @@ public sealed partial class MainWindow
     ProgressRing? homeSpinner;
     Button? homeBackupNow;
     HyperlinkButton? homePause, homeResume;
+    CheckBox? homeKeepAwake;
+    StackPanel? homeKeepAwakeBox;
     StackPanel? homeUpdate;
 
     void ShowHome()
@@ -32,6 +34,12 @@ public sealed partial class MainWindow
         homeBars = Ui.Column(8);
         homeUpdate = Ui.Column(0);
         homeBackupNow = Ui.Button(Strings.T("backupNow"), () => _ = BackupNowAsync(), accent: true);
+        var keepAwake = new CheckBox { Content = Strings.T("keepAwakeBattery") };
+        // Click (e não Checked/Unchecked) só dispara por ação da pessoa, não quando o UpdateHome ajusta o estado
+        keepAwake.Click += (_, _) => _ = KeepAwakeAsync(keepAwake.IsChecked == true);
+        homeKeepAwake = keepAwake;
+        homeKeepAwakeBox = Ui.Column(2, keepAwake, Ui.Caption(Strings.T("keepAwakeBatteryNote")));
+        homeKeepAwakeBox.Visibility = Visibility.Collapsed;   // UpdateHome mostra quando há destino
 
         // HyperlinkButton não tem a propriedade Flyout (só o Button tem); o menu vai no flyout anexado
         var pause = Ui.Link(Strings.T("pauseBackups"), () => FlyoutBase.ShowAttachedFlyout(homePause!));
@@ -73,6 +81,7 @@ public sealed partial class MainWindow
                 pause,
                 resume,
                 Ui.Link(Strings.T("changeDestination"), () => _ = ChangeDestinationAsync())),
+            homeKeepAwakeBox,
             Ui.Caption(Strings.F("versionLine", status?.Version ?? AppInfo.Version))), Page.Home);
         RenderUpdateBar();
         if (status is not null) UpdateHome(status);
@@ -87,6 +96,8 @@ public sealed partial class MainWindow
         homeBackupNow!.IsEnabled = st.State != BackupState.Running;
         homePause!.Visibility = st.PausedUntil is null ? Visibility.Visible : Visibility.Collapsed;
         homeResume!.Visibility = st.PausedUntil is not null ? Visibility.Visible : Visibility.Collapsed;
+        homeKeepAwakeBox!.Visibility = st.Destination == DestinationKind.None ? Visibility.Collapsed : Visibility.Visible;
+        homeKeepAwake!.IsChecked = st.KeepAwakeOnBattery;
         (homeHeadline.Text, homeDetail!.Text) = st.State switch
         {
             BackupState.Running => (Strings.T("stateRunning"),
@@ -168,6 +179,14 @@ public sealed partial class MainWindow
         var r = await ServiceClient.CallAsync(Cmd.Pause, new PauseRequest(kind));
         if (r?.Ok != true)
             await Ui.InfoAsync(XRoot, Strings.T(kind == PauseKind.Resume ? "pauseResume" : "pauseBackups"), ServiceClient.ErrorText(r), Strings.T("ok"));
+        await PollAsync();
+    }
+
+    async System.Threading.Tasks.Task KeepAwakeAsync(bool onBattery)
+    {
+        var r = await ServiceClient.CallAsync(Cmd.KeepAwake, new KeepAwakeRequest(onBattery));
+        if (r?.Ok != true)
+            await Ui.InfoAsync(XRoot, Strings.T("keepAwakeBattery"), ServiceClient.ErrorText(r), Strings.T("ok"));
         await PollAsync();
     }
 

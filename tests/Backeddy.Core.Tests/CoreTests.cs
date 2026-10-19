@@ -71,6 +71,21 @@ public class IpcTests
     }
 
     [Fact]
+    public void KeepAwakeRequestRoundTrips()
+    {
+        var back = Ipc.Decode<IpcRequest>(Ipc.Encode(Ipc.Request(Cmd.KeepAwake, new KeepAwakeRequest(true))))!;
+        Assert.Equal(Cmd.KeepAwake, back.Cmd);
+        Assert.True(Ipc.From<KeepAwakeRequest>(back.Data)!.OnBattery);
+    }
+
+    [Fact]
+    public void KeepAwakeOptionTravelsInTheStatus()
+    {
+        var back = Ipc.Decode<ServiceStatus>(Ipc.Encode(new ServiceStatus { KeepAwakeOnBattery = true }))!;
+        Assert.True(back.KeepAwakeOnBattery);
+    }
+
+    [Fact]
     public void GarbageIsIgnored() => Assert.Null(Ipc.Decode<ServiceStatus>("{não é json"));
 }
 

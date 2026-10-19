@@ -30,6 +30,9 @@ public static class Schedule
         return (int)(now - last).TotalDays;
     }
 
+    /// <summary>Manter o PC acordado durante o backup: sempre na tomada; na bateria só se a pessoa marcar.</summary>
+    public static bool ShouldKeepAwake(BackupConfig c, bool onBattery) => !onBattery || c.KeepAwakeOnBattery;
+
     /// <summary>Quando a pausa pedida acaba: 1 hora ou 08:00 do dia seguinte, no horário do PC.</summary>
     public static DateTimeOffset? PauseUntil(PauseKind kind, DateTimeOffset now) => kind switch
     {

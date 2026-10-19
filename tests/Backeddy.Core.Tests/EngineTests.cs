@@ -141,6 +141,15 @@ public class ScheduleTests
         Assert.Null(Schedule.OverdueDays(Cfg(null, null), Now));   // sem backup ainda não é atraso
         Assert.Null(Schedule.OverdueDays(new BackupConfig { LastSuccess = Now - TimeSpan.FromDays(9) }, Now));   // sem destino
     }
+
+    [Fact]
+    public void KeepAwakeOnlyOnBatteryWhenAsked()
+    {
+        Assert.True(Schedule.ShouldKeepAwake(Cfg(null, null), false));   // tomada: sempre
+        Assert.False(Schedule.ShouldKeepAwake(Cfg(null, null), true));   // bateria sem a opção: não
+        Assert.True(Schedule.ShouldKeepAwake(Cfg(null, null) with { KeepAwakeOnBattery = true }, true));
+        Assert.True(Schedule.ShouldKeepAwake(Cfg(null, null) with { KeepAwakeOnBattery = true }, false));
+    }
 }
 
 public class KopiaTests
@@ -274,6 +283,19 @@ public class ConfigTests
         Assert.Equal(@"E:\Backeddy", back.DiskRepo);
         Assert.Single(back.Excluded);
         Assert.Equal(DestinationKind.None, BackupConfig.Load(path + ".nao-existe").Destination);
+    }
+
+    [Fact]
+    public void KeepsTheBatteryOptionAndOldFilesMeanOff()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bk-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(dir, "config.json");
+        new BackupConfig { Destination = DestinationKind.Disk, KeepAwakeOnBattery = true }.Save(path);
+        Assert.True(BackupConfig.Load(path).KeepAwakeOnBattery);
+        // arquivo antigo, sem o campo: vale como desligado
+        var old = Path.Combine(dir, "antigo.json");
+        File.WriteAllText(old, """{"destination":"disk"}""");
+        Assert.False(BackupConfig.Load(old).KeepAwakeOnBattery);
     }
 
     [Fact]

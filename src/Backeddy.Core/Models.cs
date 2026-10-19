@@ -27,6 +27,7 @@ public sealed record ServiceStatus
     public DateTimeOffset? LastBackup { get; init; }
     public DateTimeOffset? NextBackup { get; init; }
     public DateTimeOffset? PausedUntil { get; init; }
+    public bool KeepAwakeOnBattery { get; init; }
     public DateTimeOffset? RunningSince { get; init; }
     public string? LastError { get; init; }
     public WaitReason Wait { get; init; }
@@ -45,6 +46,7 @@ public sealed record DiskSetupResult(string? Key, bool NeedsKey);
 public sealed record ServerSetup(string Host, string? Ip, string Password, string PcName, string Profile, string UserName);
 public sealed record ExclusionsPayload(List<string> Paths);
 public sealed record PauseRequest(PauseKind Kind);
+public sealed record KeepAwakeRequest(bool OnBattery);
 public sealed record PointItem(string Source, string Label, string Obj);
 public sealed record TimePoint(string Id, DateTimeOffset Time, List<PointItem> Items);
 public sealed record DirRequest(string Obj);

@@ -48,6 +48,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                 LastBackup = cfg.LastSuccess,
                 NextBackup = running ? null : Schedule.Next(cfg),
                 PausedUntil = cfg.PausedUntil is { } p && p > DateTimeOffset.Now ? p : null,   // vencida é como se não existisse
+                KeepAwakeOnBattery = cfg.KeepAwakeOnBattery,
                 RunningSince = runningSince,
                 LastError = cfg.LastError,
                 Wait = wait,
@@ -111,6 +112,10 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                     var pausedUntil = Schedule.PauseUntil(Ipc.From<PauseRequest>(req.Data)?.Kind ?? PauseKind.Resume, DateTimeOffset.Now);
                     Update(c => c with { PausedUntil = pausedUntil });
                     wake.Release();   // o agendador já recalcula o estado na hora
+                    return Ipc.Success();
+                case Cmd.KeepAwake:
+                    var keep = Ipc.From<KeepAwakeRequest>(req.Data)?.OnBattery ?? false;
+                    Update(c => c with { KeepAwakeOnBattery = keep });
                     return Ipc.Success();
                 case Cmd.Points: return await PointsAsync(ct);
                 case Cmd.ListDir:
@@ -377,6 +382,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
             else if (cfg.Destination == DestinationKind.Server && !await EnsureServerConnectedAsync(stop)) error = Err.Unreachable;
             else
             {
+                using var awake = Schedule.ShouldKeepAwake(cfg, Power.Read().OnBattery) ? KeepAwake.Begin() : null;
                 if (policiesDirty) await ApplyPoliciesAsync(stop);
                 var sources = ActiveSources().Select(s => s.Path).ToList();
                 var r = await kopia.RunAsync(KopiaCli.Snapshot(sources), secrets.RepoPassword, stop);
