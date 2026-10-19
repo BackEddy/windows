@@ -63,10 +63,17 @@ Parte da família Backeddy (contexto geral e decisões em BackEddy/server, arqui
 
 ## Fluxo de desenvolvimento (combinado em 19/10/2026)
 - Claude = PO e arquiteto (conversa com o Eddy, escreve specs, revisa, entrega os comandos). opencode (assinatura OpenCode Go, modelo
-  padrão opencode-go/glm-5.3; kimi-k2.7-code para tarefas mais difíceis) escreve o código mecânico.
+  padrão opencode-go/deepseek-v4.1-flash) escreve o código mecânico. Modelos (benchmark de 19/10/2026, tasks/bench.sh; tarefas só no Core, custo
+  de tabela US$ 0,005 a 0,02 contra 0,08 a 0,13 dos caros, todos acertaram o gabarito): padrão deepseek-v4.1-flash; reservas mimo-v2.6-flash
+  (mais barato, lento, sem problema) e glm-5.3-flash; subir de modelo só se falhar duas vezes: mimo-v2.6-pro ou deepseek-v4-pro (este não foi
+  testado na B2). Evitar glm-5.3, kimi-k2.7-code e qwen3.8-max: 5 a 10 vezes mais caros, sem ganho; o kimi nem avisou da contradição da spec.
+  O deepseek-v4.1-flash exige "Global" nas configurações de Privacy do workspace do OpenCode.
 - Regras do agente: AGENTS.md (único lugar) + este contexto.md. Config e proteções do git: opencode.json (commit/push/tag/gh negados).
 - Cada tarefa é uma spec em tasks/NNN-nome.md (modelo: tasks/_modelo.md). O Eddy roda `tasks/run.sh NNN` no Terminal do Mac dentro da pasta
   do repositório; o script chama `opencode run --auto`, confere se algo protegido mudou ou se houve commit, e imprime o relatório curto
   (tasks/NNN.relatorio.md, fora do git) e o git diff --stat. O Claude lê isso antes de abrir arquivos.
-- O Mac não compila C#: o CI do GitHub é o verificador. Se falhar, o log vai para o opencode (`tasks/run.sh NNN --ci log.txt`); depois de
+- O Mac compila e testa só o Core (`dotnet test tests/Backeddy.Core.Tests`, .NET 8 via brew); App e Service só compilam no CI do GitHub, que é o verificador. Se falhar, o log vai para o opencode (`tasks/run.sh NNN --ci log.txt`); depois de
   duas tentativas dele, o Claude assume. Quem faz commit, push e acompanha o build (`gh run watch`) é o Eddy, com os comandos do Claude.
+- Saída das tarefas: `tasks/run.sh` grava tudo em tasks/NNN.log.txt (fora do git) além de mostrar na tela; o Claude lê esse arquivo quando o Eddy diz "pronto".
+- Contingência: se a quota do OpenCode Go acabar e o Eddy precisar muito, o Claude escreve e testa o código direto no repositório; o opencode volta quando a quota voltar.
+- Benchmark de modelos: `tasks/bench.sh` (cópias limpas em ~/oc-bench, custo lido do banco do opencode, gabarito próprio de testes em tasks/bench/); `tasks/bench-rescore.sh` reavalia cópias sem gastar quota.

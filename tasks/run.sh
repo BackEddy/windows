@@ -12,7 +12,7 @@ if [ -z "$N" ]; then
   exit 2
 fi
 shift
-MODEL="opencode-go/glm-5.3"
+MODEL="opencode-go/deepseek-v4.1-flash"
 CI_LOG=""
 while [ $# -gt 0 ]; do
   case "$1" in
