@@ -13,11 +13,13 @@ Antes de qualquer coisa, leia `contexto.md` (decisões e estado do projeto) e a 
 - Testes ficam em `tests/Backeddy.Core.Tests` (xUnit) e só cobrem o Core e a lógica do Engine que não depende do Windows.
 
 ## Como verificar o trabalho
-- Neste Mac NÃO há .NET nem Windows. Quem compila e testa é o CI do GitHub (windows-latest). Por isso:
-  - Leia o código vizinho antes de escrever e copie os padrões que já existem (nomes de métodos, estilo, helpers).
-  - Antes de chamar um método ou propriedade, confira no código que ele existe e qual é a assinatura. Não invente API.
-  - Toda lógica nova do Core ganha teste em `tests/Backeddy.Core.Tests`. Os testes existentes não podem quebrar.
-  - Um erro de compilação só aparece no CI: seja conservador, mudanças pequenas e coerentes.
+- Este Mac tem o SDK do .NET 8. O `Core` e os testes compilam e rodam aqui; o `App` (WinUI) e o `Service` só compilam no Windows, no CI do GitHub.
+- ANTES de escrever o relatório, rode `dotnet test tests/Backeddy.Core.Tests` e corrija o que falhar. Só entregue com tudo passando.
+  Escreva no relatório o resultado (ex.: "54 passaram").
+- Para o que só o CI compila (`src/Backeddy.App`, `src/Backeddy.Service`): leia o código vizinho antes de escrever, copie os padrões que
+  já existem e confira no código que cada método ou propriedade existe, com a assinatura certa. Não invente API.
+- Toda lógica nova do Core ganha teste em `tests/Backeddy.Core.Tests`. Os testes existentes não podem quebrar.
+- Não rode `dotnet build` nem `dotnet publish` nos projetos `App` ou `Service` (não compilam no Mac).
 
 ## Regras de código
 - Core não usa WinUI, nem API do Windows, nem pacote NuGet novo. Nenhuma dependência nova em lugar nenhum.
@@ -47,8 +49,10 @@ Ao terminar, escreva `tasks/NNN.relatorio.md` com no máximo 25 linhas, exatamen
 (o que você escolheu quando a spec deixou aberto)
 ## Não consegui / dúvidas
 (ou "nada")
+## Testes locais
+(saída resumida de `dotnet test tests/Backeddy.Core.Tests`)
 ## Risco no CI
-(onde um erro de compilação ou de teste seria mais provável)
+(onde um erro de compilação ou de teste seria mais provável, sobretudo no App e no Service)
 ```
 Se o CI falhou e você recebeu o log: corrija SÓ o que o log mostra e acrescente ao mesmo relatório uma seção
 `## Correção do CI (tentativa K)` com a causa e o que mudou.
