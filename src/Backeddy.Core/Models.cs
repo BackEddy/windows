@@ -25,6 +25,8 @@ public sealed record ServiceStatus
     public DestinationKind Destination { get; init; }
     public string? DestinationName { get; init; }
     public DateTimeOffset? LastBackup { get; init; }
+    public DateTimeOffset? LastVerify { get; init; }
+    public bool VerifyFailed { get; init; }
     public DateTimeOffset? NextBackup { get; init; }
     public DateTimeOffset? PausedUntil { get; init; }
     public bool KeepAwakeOnBattery { get; init; }

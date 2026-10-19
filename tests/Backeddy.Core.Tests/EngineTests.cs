@@ -150,6 +150,20 @@ public class ScheduleTests
         Assert.True(Schedule.ShouldKeepAwake(Cfg(null, null) with { KeepAwakeOnBattery = true }, true));
         Assert.True(Schedule.ShouldKeepAwake(Cfg(null, null) with { KeepAwakeOnBattery = true }, false));
     }
+
+    [Fact]
+    public void VerifyRunsWeeklyAndDailyAfterAProblem()
+    {
+        Assert.False(Schedule.VerifyDue(new BackupConfig { LastSuccess = Now }, Now));   // sem destino
+        Assert.False(Schedule.VerifyDue(new BackupConfig { Destination = DestinationKind.Disk }, Now));   // sem LastSuccess
+        var c = Cfg(Now, null);
+        Assert.True(Schedule.VerifyDue(c, Now));   // nunca conferiu
+        Assert.False(Schedule.VerifyDue(c with { LastVerify = Now - TimeSpan.FromDays(6) }, Now));
+        Assert.True(Schedule.VerifyDue(c with { LastVerify = Now - TimeSpan.FromDays(7) }, Now));
+        var failed = c with { LastVerify = Now - TimeSpan.FromHours(23), VerifyFailed = true };
+        Assert.False(Schedule.VerifyDue(failed, Now));
+        Assert.True(Schedule.VerifyDue(failed with { LastVerify = Now - TimeSpan.FromHours(24) }, Now));
+    }
 }
 
 public class KopiaTests
@@ -207,6 +221,12 @@ public class KopiaTests
         Assert.Equal(Err.NoSpace, KopiaCli.Classify("write: There is not enough space on the disk"));
         Assert.Equal(Err.Dropped, KopiaCli.Classify("ERROR flush error: error waiting for async writes: EOF: EOF"));
         Assert.Equal(Err.Unknown, KopiaCli.Classify("boom"));
+    }
+
+    [Fact]
+    public void VerifyAsksForAOnePercentSample()
+    {
+        Assert.Equal(new[] { "snapshot", "verify", "--verify-files-percent=1" }, KopiaCli.Verify());
     }
 
     [Fact]
@@ -296,6 +316,24 @@ public class ConfigTests
         var old = Path.Combine(dir, "antigo.json");
         File.WriteAllText(old, """{"destination":"disk"}""");
         Assert.False(BackupConfig.Load(old).KeepAwakeOnBattery);
+    }
+
+    [Fact]
+    public void KeepsTheVerifyStateAndOldFilesMeanNothingYet()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bk-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(dir, "config.json");
+        var when = new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+        new BackupConfig { Destination = DestinationKind.Disk, LastVerify = when, VerifyFailed = true }.Save(path);
+        var back = BackupConfig.Load(path);
+        Assert.Equal(when, back.LastVerify);
+        Assert.True(back.VerifyFailed);
+        // arquivo antigo, sem os campos: ainda não conferiu e não falhou
+        var old = Path.Combine(dir, "antigo.json");
+        File.WriteAllText(old, """{"destination":"disk"}""");
+        var loaded = BackupConfig.Load(old);
+        Assert.Null(loaded.LastVerify);
+        Assert.False(loaded.VerifyFailed);
     }
 
     [Fact]

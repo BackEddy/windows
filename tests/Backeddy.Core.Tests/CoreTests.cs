@@ -86,6 +86,14 @@ public class IpcTests
     }
 
     [Fact]
+    public void VerifyStateTravelsInTheStatus()
+    {
+        var back = Ipc.Decode<ServiceStatus>(Ipc.Encode(new ServiceStatus { LastVerify = DateTimeOffset.UnixEpoch, VerifyFailed = true }))!;
+        Assert.Equal(DateTimeOffset.UnixEpoch, back.LastVerify);
+        Assert.True(back.VerifyFailed);
+    }
+
+    [Fact]
     public void GarbageIsIgnored() => Assert.Null(Ipc.Decode<ServiceStatus>("{não é json"));
 }
 

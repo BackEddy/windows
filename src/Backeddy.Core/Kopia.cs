@@ -56,6 +56,9 @@ public static class KopiaCli
 
     public static string[] SnapshotList() => new[] { "snapshot", "list", "--json" };
 
+    /// <summary>Confere a estrutura do repositório e baixa 1% dos arquivos para checar.</summary>
+    public static string[] Verify() => new[] { "snapshot", "verify", "--verify-files-percent=1" };
+
     public static string[] Show(string obj) => new[] { "show", obj };
 
     public static string[] Restore(string obj, string target, bool overwrite) =>

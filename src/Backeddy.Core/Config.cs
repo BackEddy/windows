@@ -22,6 +22,8 @@ public sealed record BackupConfig
     public DateTimeOffset? PausedUntil { get; init; }   // até quando os backups automáticos ficam pausados
     public bool KeepAwakeOnBattery { get; init; }       // manter o PC acordado no backup mesmo na bateria
     public DateTimeOffset? LastSuccess { get; init; }
+    public DateTimeOffset? LastVerify { get; init; }    // última conferência dos dados guardados
+    public bool VerifyFailed { get; init; }             // conferência achou problema nos dados
     public DateTimeOffset? LastAttempt { get; init; }
     public string? LastError { get; init; }
     public long LastFiles { get; init; }

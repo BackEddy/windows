@@ -13,7 +13,7 @@ namespace Backeddy.App;
 // Tela inicial: situação, destino, último backup, avisos do servidor e os botões principais.
 public sealed partial class MainWindow
 {
-    TextBlock? homeHeadline, homeDetail, homeDest, homeLast, homeNext;
+    TextBlock? homeHeadline, homeDetail, homeDest, homeLast, homeNext, homeVerified;
     StackPanel? homeBars, homeHeadRow;
     ProgressRing? homeSpinner;
     Button? homeBackupNow;
@@ -30,6 +30,7 @@ public sealed partial class MainWindow
         homeDetail = Ui.Text("", 0.85);
         homeDest = Ui.Text("");
         homeLast = Ui.Text("");
+        homeVerified = Ui.Text("");
         homeNext = Ui.Text("");
         homeBars = Ui.Column(8);
         homeUpdate = Ui.Column(0);
@@ -68,6 +69,7 @@ public sealed partial class MainWindow
         Fact(0, Strings.T("destination"), homeDest);
         Fact(1, Strings.T("lastBackup"), homeLast);
         Fact(2, Strings.T("nextBackup"), homeNext);
+        Fact(3, Strings.T("lastVerify"), homeVerified);
 
         Show(Ui.Column(18,
             Ui.Title("Backeddy"),
@@ -118,12 +120,15 @@ public sealed partial class MainWindow
             : Strings.T("never");
         homeNext!.Text = st.State == BackupState.Running ? Strings.T("nowRunning")
             : st.NextBackup is { } next ? (next <= now ? Strings.T("soon") : Format.When(next, now)) : "—";
+        homeVerified!.Text = st.LastVerify is { } v ? Format.When(v, now) + (st.VerifyFailed ? " · " + Strings.T("verifyFailedShort") : "") : "—";
 
         homeBars.Children.Clear();
         if (st.OverdueDays is { } days)   // atraso de 3 dias ou mais: no topo, antes dos avisos do servidor
             homeBars.Children.Add(Ui.Bar(InfoBarSeverity.Warning,
                 Strings.F("overdueTitle", days),
                 Strings.F(server ? "overdueServer" : "overdueDisk", st.DestinationName ?? "")));
+        if (st.VerifyFailed)
+            homeBars.Children.Add(Ui.Bar(InfoBarSeverity.Warning, Strings.T("verifyFailedTitle"), Strings.T("verifyFailedText")));
         if (st.Message == "kopiaMissing")
             homeBars.Children.Add(Ui.Bar(InfoBarSeverity.Error, null, Strings.T("err.kopiaMissing")));
         foreach (var a in st.Alerts)

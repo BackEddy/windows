@@ -8,6 +8,8 @@ public static class Schedule
     public static readonly TimeSpan Interval = TimeSpan.FromHours(1);
     public static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan OverdueAfter = TimeSpan.FromDays(3);
+    public static readonly TimeSpan VerifyEvery = TimeSpan.FromDays(7);
+    public static readonly TimeSpan VerifyRetryAfterFailure = TimeSpan.FromDays(1);   // o aviso some logo depois do conserto
     public const int MinBattery = 20;
 
     public static DateTimeOffset? Next(BackupConfig c)
@@ -32,6 +34,14 @@ public static class Schedule
 
     /// <summary>Manter o PC acordado durante o backup: sempre na tomada; na bateria só se a pessoa marcar.</summary>
     public static bool ShouldKeepAwake(BackupConfig c, bool onBattery) => !onBattery || c.KeepAwakeOnBattery;
+
+    /// <summary>Conferir os dados guardados: uma vez por semana, ou no dia seguinte a uma conferência que achou problema.</summary>
+    public static bool VerifyDue(BackupConfig c, DateTimeOffset now)
+    {
+        if (c.Destination == DestinationKind.None || c.LastSuccess is null) return false;
+        if (c.LastVerify is not { } last) return true;
+        return now - last >= (c.VerifyFailed ? VerifyRetryAfterFailure : VerifyEvery);
+    }
 
     /// <summary>Quando a pausa pedida acaba: 1 hora ou 08:00 do dia seguinte, no horário do PC.</summary>
     public static DateTimeOffset? PauseUntil(PauseKind kind, DateTimeOffset now) => kind switch

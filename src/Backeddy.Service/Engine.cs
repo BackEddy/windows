@@ -46,6 +46,8 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                 Destination = cfg.Destination,
                 DestinationName = cfg.DisplayName,
                 LastBackup = cfg.LastSuccess,
+                LastVerify = cfg.LastVerify,
+                VerifyFailed = cfg.VerifyFailed,
                 NextBackup = running ? null : Schedule.Next(cfg),
                 PausedUntil = cfg.PausedUntil is { } p && p > DateTimeOffset.Now ? p : null,   // vencida é como se não existisse
                 KeepAwakeOnBattery = cfg.KeepAwakeOnBattery,
@@ -387,6 +389,7 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
                 var sources = ActiveSources().Select(s => s.Path).ToList();
                 var r = await kopia.RunAsync(KopiaCli.Snapshot(sources), secrets.RepoPassword, stop);
                 if (!r.Ok) error = r.Error;
+                else await VerifyAsync(stop);
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { throw; }
@@ -413,6 +416,31 @@ public sealed class Engine(KopiaRunner kopia, ILogger<Engine> log) : BackgroundS
             if (error == Err.Unreachable) connectedUrl = null;
             Update(c => c with { LastAttempt = now, LastError = error });
         }
+    }
+
+    /// <summary>Confere os dados guardados uma vez por semana; nunca faz o backup virar erro.</summary>
+    async Task VerifyAsync(CancellationToken ct)
+    {
+        if (!Schedule.VerifyDue(cfg, DateTimeOffset.Now)) return;
+        try
+        {
+            var r = await kopia.RunAsync(KopiaCli.Verify(), secrets.RepoPassword, ct, TimeSpan.FromHours(2));
+            var now = DateTimeOffset.Now;
+            if (r.Ok) Update(c => c with { LastVerify = now, VerifyFailed = false });
+            else if (r.Error == Err.Unknown)
+            {
+                log.LogWarning("conferência achou problema");
+                Update(c => c with { LastVerify = now, VerifyFailed = true });
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException)
+        {
+            log.LogWarning("conferência passou de 2 horas; tenta de novo na semana que vem");
+            var now = DateTimeOffset.Now;
+            Update(c => c with { LastVerify = now });
+        }
+        catch (Exception e) { log.LogError(e, "conferência"); }
     }
 
     // soma do último backup de cada origem
