@@ -40,8 +40,8 @@ for M in "$@"; do
 
   T0=$(date +%s)
   PROMPT="Siga as regras do AGENTS.md e execute a tarefa descrita em tasks/bench.md. Ao terminar, escreva o relatório em tasks/bench.relatorio.md no formato do AGENTS.md. Não faça commit nem push."
-  ( cd "$W" && perl -e 'alarm shift; exec @ARGV' "$TIMEOUT" opencode run --auto -m "$M" "$PROMPT" ) > "$W/bench.log" 2>&1
-  CODE=$?
+  ( cd "$W" && perl -e 'alarm shift; exec @ARGV' "$TIMEOUT" opencode run --auto -m "$M" "$PROMPT" ) 2>&1 | tee "$W/bench.log"
+  CODE=${PIPESTATUS[0]}
   SECS=$(( $(date +%s) - T0 ))
   OBS=""
   [ "$CODE" -ne 0 ] && OBS="opencode saiu com $CODE; "
@@ -54,10 +54,10 @@ for M in "$@"; do
     OWN="NAO COMPILA"; REFS="-"
   else
     RES=$(grep -o '<UnitTestResult [^>]*>' "$TRX")
-    OWN_OK=$(echo "$RES" | grep -v 'testName="Ref' | grep -c 'outcome="Passed"')
-    OWN_BAD=$(echo "$RES" | grep -v 'testName="Ref' | grep -vc 'outcome="Passed"')
-    REF_ALL=$(echo "$RES" | grep -c 'testName="Ref')
-    REF_OK=$(echo "$RES" | grep 'testName="Ref' | grep -c 'outcome="Passed"')
+    OWN_OK=$(echo "$RES" | grep -v 'BenchReferenceTests' | grep -c 'outcome="Passed"')
+    OWN_BAD=$(echo "$RES" | grep -v 'BenchReferenceTests' | grep -vc 'outcome="Passed"')
+    REF_ALL=$(echo "$RES" | grep -c 'BenchReferenceTests')
+    REF_OK=$(echo "$RES" | grep 'BenchReferenceTests' | grep -c 'outcome="Passed"')
     OWN="${OWN_OK}ok/${OWN_BAD}falha"; REFS="${REF_OK}/${REF_ALL}"
   fi
   rm -f "$W/tests/Backeddy.Core.Tests/BenchReferenceTests.cs"

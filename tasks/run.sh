@@ -22,6 +22,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# tudo que aparece na tela também vai para tasks/NNN.log.txt (o Claude lê esse arquivo)
+exec > >(tee -a "tasks/$N.log.txt") 2>&1
+
 SPEC=$(ls tasks/"$N"-*.md 2>/dev/null | head -1)
 if [ -z "$SPEC" ]; then echo "não achei tasks/$N-*.md"; exit 2; fi
 if ! command -v opencode >/dev/null 2>&1; then echo "opencode não está no PATH"; exit 2; fi
