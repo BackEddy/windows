@@ -60,3 +60,13 @@ Parte da família Backeddy (contexto geral e decisões em BackEddy/server, arqui
 - Depois: recuperação de desastre ("Este PC substitui o PC-X", mapear pasta de usuário, "Restaurar tudo");
   assinatura digital (SignPath) quando houver reputação; jogos/apps, migração, imagem do sistema, pendrive de resgate.
 - Busca de servidores: Backeddy.Core.Mdns (mDNS direto, legacy unicast) + DeviceInformation; a do Windows sozinha falhou no teste.
+
+## Fluxo de desenvolvimento (combinado em 19/10/2026)
+- Claude = PO e arquiteto (conversa com o Eddy, escreve specs, revisa, entrega os comandos). opencode (assinatura OpenCode Go, modelo
+  padrão opencode-go/glm-5.3; kimi-k2.7-code para tarefas mais difíceis) escreve o código mecânico.
+- Regras do agente: AGENTS.md (único lugar) + este contexto.md. Config e proteções do git: opencode.json (commit/push/tag/gh negados).
+- Cada tarefa é uma spec em tasks/NNN-nome.md (modelo: tasks/_modelo.md). O Eddy roda `tasks/run.sh NNN` no Terminal do Mac dentro da pasta
+  do repositório; o script chama `opencode run --auto`, confere se algo protegido mudou ou se houve commit, e imprime o relatório curto
+  (tasks/NNN.relatorio.md, fora do git) e o git diff --stat. O Claude lê isso antes de abrir arquivos.
+- O Mac não compila C#: o CI do GitHub é o verificador. Se falhar, o log vai para o opencode (`tasks/run.sh NNN --ci log.txt`); depois de
+  duas tentativas dele, o Claude assume. Quem faz commit, push e acompanha o build (`gh run watch`) é o Eddy, com os comandos do Claude.

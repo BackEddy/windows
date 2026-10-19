@@ -5,3 +5,7 @@ out/
 .vs/
 .DS_Store
 work/
+
+# fluxo opencode
+tasks/*.relatorio.md
+tasks/.*.ci-tentativas
